@@ -332,6 +332,13 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
         linked,
       };
     })
+    .filter((row) => {
+      const isFullySold = Math.abs(row.shares) < 0.0001;
+      if (isFullySold && !row.linked) {
+        return false;
+      }
+      return true;
+    })
     .sort((rowA, rowB) => rowA.feeRatio - rowB.feeRatio);
 
   const maxFee = Math.max(...costRows.map((row) => row.feeRatio), 0.01);

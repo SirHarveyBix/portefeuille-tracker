@@ -39,7 +39,7 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const vixConfiguration = window.APP_CONFIG?.VIX || { source: "cboe" };
+  const vixConfiguration = window.APP_CONFIG?.VIX || { source: "convextrade" };
 
   // Recomputation variables
   const monthlyContribution = allocation.monthly || 0;
@@ -360,9 +360,8 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
   const showInput = vixManual || !isVixActive;
 
   const sourceLabels: Record<string, string> = {
-    cboe: "CBOE",
-    proxy: "proxy",
-    twelvedata: "Twelve Data",
+    convextrade: "ConvexTrade",
+    cboe: "ConvexTrade", // Compatibilité ascendante
   };
   const vixStatusLabel = vixStatus
     ? vixStatus

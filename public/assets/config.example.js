@@ -25,10 +25,8 @@ window.APP_CONFIG = {
   // E-mail du compte Google autorisé (doit correspondre aux règles Firestore)
   OWNER_EMAIL: "",
 
-  // VIX : "cboe" (défaut, gratuit) | "proxy" | "twelvedata" | "off"
+  // VIX : "convextrade" (défaut, gratuit) | "off" (désactivé)
   VIX: {
-    source: "cboe",
-    proxyUrl: "", // URL du Cloudflare Worker si source "proxy"
-    apiKey: "", // Clé API si source "twelvedata"
+    source: "convextrade",
   },
 };

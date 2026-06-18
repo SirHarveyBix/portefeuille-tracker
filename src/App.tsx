@@ -13,7 +13,7 @@ import {
   FirebaseAuthInstance,
 } from "./components/AuthHeader";
 
-export const APP_VERSION = "2.0.1";
+export const APP_VERSION = "2.0.2";
 
 const ALLOCATION_SEED: AllocationConfig = {
   monthly: 100,
@@ -201,7 +201,7 @@ export const App: React.FC = () => {
   useEffect(() => {
     if (isInitializing || vixAutoFetchedRef.current) return;
     vixAutoFetchedRef.current = true;
-    const vixConfig = window.APP_CONFIG?.VIX || { source: "cboe" };
+    const vixConfig = window.APP_CONFIG?.VIX || { source: "convextrade" };
     if (!vixConfig.source || vixConfig.source === "off") return;
     const isStale =
       !allocation.vixTimestamp ||

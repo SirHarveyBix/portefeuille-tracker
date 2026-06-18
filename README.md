@@ -81,7 +81,7 @@ L'application découple ses règles métier de l'infrastructure pour faciliter l
   - Définit les signatures pour la persistance ([src/utils/storage.ts](src/utils/storage.ts)) et la récupération VIX ([src/utils/marketVix.ts](src/utils/marketVix.ts)).
 - **Adaptateurs** :
   - **Stockage** : Implémentations interchangeables LocalStorage / Cloud Firestore.
-  - **API Marché** : Récupération du VIX via CBOE (direct ou via proxy worker CORS) ou Twelve Data API.
+  - **API Marché** : Récupération du VIX en temps réel via l'API de ConvexTrade (CORS natif).
   - **Interface Utilisateur** : Composants React ([src/components/](src/components/)) et orchestrateur principal [src/App.tsx](src/App.tsx).
 
 ---
