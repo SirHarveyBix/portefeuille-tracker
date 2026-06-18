@@ -1,10 +1,15 @@
-# Données personnelles — NE JAMAIS committer
-*.numbers
-Exportation_*.csv
-mon-portefeuille*.json
-portefeuille-allocation*.json
-/data/
-/private/
+# Config Firebase — clés privées, NE JAMAIS committer
+# Copier config.example.js → config.js et remplir ses valeurs
+**/config.js
+**/config.local.js
+
+# Firebase CLI
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+database-debug.log
+pubsub-debug.log
 
 # Système / éditeurs
 .DS_Store
@@ -12,3 +17,25 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Dépendances et artefacts
+*.cache
+*.log
+node_modules/
+dist/
+
+# Exports générés par l'app — données personnelles
+ordres-*.csv
+Exportation_*.csv
+*.numbers
+mon-portefeuille*.json
+portefeuille-allocation*.json
+
+# Données personnelles brutes
+/data/
+/private/
+
+# Fichiers d'environnement
+.env
+.env.local
+.env.*.local

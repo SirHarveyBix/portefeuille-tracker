@@ -1,197 +1,104 @@
 # Suivi de portefeuille
 
-Tableau de bord personnel pour suivre ses transactions et piloter le rééquilibrage
-de son portefeuille. **100 % local, sans serveur, sans base de données.** Un fichier
-HTML que l'on ouvre dans un navigateur ou que l'on héberge en statique.
+Tableau de bord personnel pour suivre ses transactions et piloter le rééquilibrage. Hébergé sur Firebase, données synchronisées entre appareils.
 
 ---
 
-## Sommaire
+## Vues de l'application
 
-- [En bref](#en-bref)
-- [Confidentialité](#confidentialité)
-- [Les trois vues](#les-trois-vues)
-- [Format du CSV attendu](#format-du-csv-attendu)
-- [Utilisation locale (Mac)](#utilisation-locale-mac)
-- [Hébergement (accès iPhone + Mac)](#hébergement-accès-iphone--mac)
-- [Synchroniser ses données entre appareils](#synchroniser-ses-données-entre-appareils)
-- [Indicateur VIX](#indicateur-vix)
-- [Structure du projet](#structure-du-projet)
-- [Développement](#développement)
-- [Changelog](#changelog)
+| Vue                | Ce qu'elle fait                                                                                                                                                    |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Vue d'ensemble** | Indicateurs Clés de Performance (Key Performance Indicators / KPI), courbe de capital, répartition par classe d'actif, barres mensuelles, journal des transactions |
+| **Constellation**  | Visualisation animée — chaque position = une bulle proportionnelle au montant                                                                                      |
+| **Allocation**     | Rééquilibrage par cible : calcule combien investir par ligne ce mois, exporte les ordres                                                                           |
 
----
+## Démarrage rapide
 
-## En bref
+L'application est une application monopage (Single-Page Application / SPA) construite avec la bibliothèque React, l'outil de construction Vite et typée en langage TypeScript.
 
-- **Vue d'ensemble** — KPIs, capital déployé dans le temps, répartition par classe
-  d'actif, investissement net par mois (reventes déduites), PRU par position, journal filtrable.
-- **Constellation** — visualisation animée où chaque position est une bulle
-  dimensionnée par le montant investi.
-- **Allocation** — outil de rééquilibrage par cible : on saisit ses montants et ses
-  cibles, l'app calcule combien investir sur chaque ligne ce mois-ci et exporte la
-  liste d'ordres.
+1. **Installer les dépendances** : utiliser le gestionnaire de paquets Node Package Manager en lançant la commande `npm install`
+2. **Lancer le serveur de développement** : lancer la commande `npm run dev` (ouvre le navigateur à l'adresse http://localhost:3000)
+3. **Compiler pour la production** : lancer la commande `npm run build`
 
-### Installation en 30 secondes (le plus simple)
-Décompresser le dossier et **double-cliquer sur `index.html`**. C'est tout : ça s'ouvre
-dans le navigateur, en local, sans rien installer. Charger son CSV, c'est prêt.
-Pour y accéder depuis le téléphone ou synchroniser, voir [Hébergement](#hébergement-accès-iphone--mac).
+**Avec Firebase (synchronisation multi-appareils)** :
 
-Aucune dépendance, aucun build.
+1. **Créer le projet** : Aller sur la [Console Firebase](https://console.firebase.google.com/) et créer un projet.
+   - Activer **Authentification Google (Google Auth)** (dans _Authentication_ > _Sign-in method_).
+   - Activer **Cloud Firestore** (base de données en mode production, région au choix).
+   - Enregistrer une application Web dans le projet pour générer le bloc de clés de configuration.
+2. **Configurer l'application** :
+   - Copier le fichier `public/assets/config.example.js` vers `public/assets/config.js`.
+   - Remplir le bloc `FIREBASE` avec les clés générées par la console, et indiquer votre adresse de messagerie de connexion Google dans `OWNER_EMAIL`.
+3. **Déployer sur le Cloud** :
+   - Se connecter à la CLI : `npx firebase login`
+   - Associer à votre projet : `npx firebase use --add` (choisir le projet créé).
+   - Compiler l'application : `npm run build`
+   - Déployer (code compilé + règles de sécurité Firestore) : `npx firebase deploy`
+4. **Installer l'application** : Ouvrir l'URL d'hébergement générée par Firebase (e.g. `https://<projet>.web.app`) dans Safari sur iPhone → bouton _Partager_ → _Ajouter sur l'écran d'accueil_ (fonctionne en PWA hors-ligne).
+
+## Architecture Hexagonale (Ports et Adaptateurs)
+
+L'application suit les principes de l'architecture hexagonale afin de découpler les règles métier des technologies d'infrastructure et de présentation :
+
+- **Noyau Métier (Core Domain)** : Contient les règles d'allocation, de rééquilibrage et la modélisation financière. Totalement découplé de la bibliothèque React et de la base de données Firebase.
+  - [types.ts](src/types.ts) : Définitions et structures de données.
+  - [financeMath.ts](src/utils/financeMath.ts) : Formules mathématiques et logiques d'allocation de capital.
+  - [csvParser.ts](src/utils/csvParser.ts) : Analyseur syntaxique pour les fichiers de transactions.
+- **Ports (Interfaces d'accès)** :
+  - Définit les signatures pour le chargement et la persistance des données ([storage.ts](src/utils/storage.ts)) et la récupération des données de marché externe ([marketVix.ts](src/utils/marketVix.ts)).
+- **Adaptateurs (Adapters)** :
+  - **Adaptateur de stockage** : Implémenté pour la mémoire locale du navigateur (Local Storage) et pour la base de données distante (Cloud Firestore).
+  - **Adaptateur d'API de marché** : Récupère l'indice de volatilité (Volatility Index / VIX) depuis le Chicago Board Options Exchange (CBOE) ou Twelve Data.
+  - **Adaptateur d'Interface Utilisateur (UI Adapter)** : Les composants React réactifs présents dans le dossier `src/components/` et le composant racine `src/App.tsx`.
 
 ## Confidentialité
 
-- Le **CSV de transactions n'est jamais téléversé ni stocké en ligne.** Il est lu en
-  mémoire dans le navigateur, le temps d'une session. Recharger la page le « oublie ».
-- Le dépôt et le site hébergé ne contiennent **aucune** donnée personnelle.
-- Seules les **valeurs d'allocation saisies à la main** sont conservées, et uniquement
-  dans le stockage local du navigateur de l'appareil (`localStorage`). Elles peuvent
-  être exportées/importées en JSON pour la sauvegarde et le transfert entre appareils.
+- **Le fichier de transactions (Comma-Separated Values / CSV) ne quitte jamais l'appareil.** Il est lu uniquement en mémoire par le navigateur, jamais téléversé sur un serveur tiers.
+- Seules les **valeurs d'allocation** (montants et cibles) et le **modèle calculé** (positions agrégées) sont sauvegardés — en mémoire locale (Local Storage) ou dans la base de données Cloud Firestore selon votre configuration.
+- Accès à la base de données Cloud Firestore doublement verrouillé : validation de l'adresse de messagerie électronique du propriétaire au niveau applicatif et vérification de l'identifiant unique de l'utilisateur (Unique Identifier / UID) au niveau des règles de sécurité du serveur.
 
-## Les trois vues
+## Format d'importation CSV
 
-### Vue d'ensemble
-Calculée à partir du CSV. « Capital net déployé » = somme des achats − somme des ventes
-(flux, pas valorisation de marché). La moyenne mensuelle est **nette** : les reventes
-d'un mois sont déduites de ses achats.
+Export de la plateforme de courtage Trade Republic. Colonnes utilisées : `date`, `category`, `type` (BUY/SELL), `asset_class`, `name`, `symbol`, `shares`, `price`, `amount`, `fee`. Seules les lignes dont la catégorie (`category`) est égale à `TRADING` sont prises en compte par l'application.
 
-### Constellation
-Rendu d'une simulation physique légère (gravité + collisions) en SVG. La plus grosse
-bulle = le plus gros investissement. Survol → détail de la position. L'animation se met
-en pause automatiquement hors écran (onglet inactif).
+Un fichier d'exemple `sample-data/sample.csv` permet de tester l'application sans importer vos propres données réelles.
 
-### Allocation (rééquilibrage)
-Pour chaque ligne : `% réel = Montant / Total du cœur`. Le montant à investir suit la
-logique de rééquilibrage par apport (sans vente) :
+## Allocation — logique de rééquilibrage
 
 ```
-À investir = max(0 ; (Total_cœur + Allocation_mensuelle) × %cible − Montant)
+Portefeuille Cœur      : À investir = valeur maximale entre 0 et ((Total du cœur + Apport mensuel) × % cible − Montant actuel)
+Portefeuille Satellite : À investir = ((Total du cœur + Apport mensuel) × % cible − Montant actuel (cette valeur peut être négative)
 ```
 
-Le bloc **satellite** (crypto, métaux…) exprime ses cibles en % du cœur ; son
-« à investir » n'est pas borné et peut être négatif (ligne surpondérée).
+## Indicateur d'Indice de Volatilité (Volatility Index / VIX)
 
-## Format du CSV attendu
+Valeur récupérée automatiquement depuis le Chicago Board Options Exchange (CBOE) (gratuit, sans clé de sécurité requise), mise en cache pour une durée de 6 heures. Un bouton "↻ actualiser" ou une option de saisie manuelle est disponible si le service est indisponible. La source est paramétrable dans le fichier de configuration `public/assets/config.js`.
 
-Export type Trade Republic. Les colonnes utilisées sont :
-`date`, `category`, `type` (`BUY`/`SELL`), `asset_class` (`FUND`/`STOCK`/`CRYPTO`),
-`name`, `symbol`, `shares`, `price`, `amount` (négatif à l'achat), `fee`.
-Seules les lignes `category = TRADING` sont prises en compte.
+## Commandes de Développement
 
-Un fichier `sample-data/sample.csv` (factice) permet de tester sans données réelles.
-
-## Utilisation locale (Mac)
-
-Double-cliquer sur `index.html` : il s'ouvre dans le navigateur par défaut. Charger son
-CSV via la zone « Charger un CSV » (glisser-déposer ou clic). C'est tout.
-
-## Hébergement (accès iPhone + Mac)
-
-Le projet est un site statique : n'importe quel hébergeur statique convient. Deux modes
-de stockage sont possibles selon `assets/config.js` :
-
-- **Local** (par défaut) : les valeurs d'allocation restent dans le navigateur de
-  l'appareil ; transfert entre appareils via export/import JSON.
-- **En ligne sécurisé** (Firebase) : connexion Google, données synchronisées et
-  réservées à ton seul compte.
-
-### Option A — GitHub Pages / Cloudflare Pages (mode local)
-1. Pousser ce dossier dans un dépôt, ou le glisser dans Cloudflare Pages (*Upload assets*).
-2. Pour GitHub Pages : *Settings → Pages → Deploy from a branch → `main` / `/ (root)`*.
-3. L'URL obtenue est l'application.
-
-### Option B — Firebase (mode en ligne, accès privé)
-1. Créer un projet sur [console.firebase.google.com](https://console.firebase.google.com).
-2. *Authentication → Sign-in method →* activer **Google**.
-3. *Firestore Database →* créer la base (mode production).
-4. *Project settings → Tes applications → Web →* copier la config dans
-   `assets/config.js` (objet `FIREBASE`) et renseigner `OWNER_EMAIL`.
-5. Déployer les règles de `firestore.rules` (y mettre **le même e-mail**) :
-   - soit dans la console (*Firestore → Rules*), soit via la CLI :
-     ```
-     npm i -g firebase-tools
-     firebase login
-     firebase init firestore hosting   # pointer "public" sur ce dossier
-     firebase deploy
-     ```
-6. Firebase Hosting sert alors l'app en HTTPS. À la première ouverture, se connecter
-   avec le compte propriétaire.
-
-### Installer sur l'iPhone
-Ouvrir l'URL dans **Safari → Partager → Ajouter à l'écran d'accueil**. L'app se lance
-en plein écran avec son icône.
-
-## Sécurité (mode en ligne)
-
-Le contrôle d'accès repose sur **deux verrous complémentaires** :
-
-1. **Interface** — seule l'adresse `OWNER_EMAIL` est acceptée ; tout autre compte est
-   immédiatement déconnecté avec un message « Compte non autorisé ».
-2. **Règles Firestore** (`firestore.rules`) — c'est la vraie barrière, côté serveur :
-   l'accès n'est accordé que si l'utilisateur est connecté, n'agit que sur son propre
-   document, **et** que son e-mail correspond au propriétaire. Même quelqu'un qui
-   connaît l'URL et se connecte avec son propre Google ne lit ni n'écrit rien.
-
-Les clés Web Firebase présentes dans `config.js` ne sont **pas** des secrets : elles
-identifient le projet, la sécurité venant des règles ci-dessus. Le **CSV de
-transactions n'est jamais envoyé à Firebase** : seules les valeurs d'allocation y sont
-stockées, dans `portfolios/{uid}`.
-
-## Synchroniser ses données entre appareils
-
-- **Mode Firebase** : automatique. Connecte le même compte sur Mac et iPhone.
-- **Mode local** : via export/import du JSON (onglet Allocation → ⤓ / ⤒), par ex. en le
-  posant dans iCloud Drive.
-
-## Indicateur VIX
-
-La carte « régime de marché » affiche le **VIX récupéré depuis une source réelle**
-(jamais une valeur inventée) et en déduit le régime (calme < 15, normal < 20, élevé < 28,
-stress au-delà). La source se choisit dans `assets/config.js` (`VIX.source`) :
-
-- **`cboe`** (défaut) — fichier officiel CBOE, gratuit, sans clé
-  (`cdn.cboe.com/.../VIX_History.csv`), clôture quotidienne. Idéal pour du DCA.
-- **`proxy`** — si le navigateur bloque l'appel direct au CSV (CORS), déploie le petit
-  Cloudflare Worker fourni (`vix-proxy.worker.js`, ~10 lignes, gratuit) et mets son URL
-  dans `VIX.proxyUrl`. Il relaie le CSV CBOE en JSON propre, sans souci de CORS.
-- **`twelvedata`** — alternative avec clé gratuite (`VIX.apiKey`).
-- **`off`** — saisie manuelle.
-
-La valeur est récupérée automatiquement à l'ouverture de l'onglet Allocation (puis mise
-en cache 6 h), avec un bouton « actualiser » et une saisie manuelle de secours.
-
-## Structure du projet
-
-```
-.
-├── index.html                 coquille (aucune donnée)
-├── assets/
-│   ├── styles.css             styles (desktop + mobile repensé)
-│   ├── app.js                 logique (script classique, sans build)
-│   ├── config.js              configuration (stockage + source VIX)
-│   └── apple-touch-icon.png   icône écran d'accueil
-├── sample-data/
-│   └── sample.csv             jeu de test factice
-├── firestore.rules            règles de sécurité (mode en ligne)
-├── vix-proxy.worker.js        proxy VIX optionnel (Cloudflare Worker)
-├── spec.md                    spécification technique complète
-├── README.md
-├── CHANGELOG.md
-└── LICENSE
+```bash
+npm install       # Installe l'environnement de développement React/TypeScript
+npm run dev       # Démarre le serveur de développement local rapide (Vite)
+npm run build     # Compile et minifie l'application de production dans le dossier dist/
+npm test          # Lance les 25 tests unitaires des formules mathématiques
+npx firebase deploy # Déploie la configuration et le site compilé sur les serveurs Firebase
 ```
 
-## Développement
+Structure des fichiers du projet :
 
-- Pas de build, pas de bundler. `app.js` est un script classique encapsulé dans une IIFE,
-  organisé en sections numérotées (constantes, utilitaires, stockage, vues…).
-- La couche de persistance est isolée dans l'objet `Store` (méthodes `load`/`save`
-  asynchrones). Mode `local` (localStorage) par défaut, ou `firebase` (Firestore) si
-  `config.js` fournit une config et que l'utilisateur propriétaire est connecté.
-  Pour brancher un autre backend (par ex. Node + SQLite sur le Mac Mini, exposé via
-  Tailscale), il suffit de réécrire `Store` sans toucher au reste de l'interface.
-- Le système de version : constante `APP_VERSION` + tableau `CHANGELOG` dans `app.js`
-  (affichés via le bouton de version en pied de page). Garder `CHANGELOG.md` aligné.
-
-## Changelog
-
-Voir [CHANGELOG.md](CHANGELOG.md).
+```
+public/assets/
+  config.js        # Fichier de configuration web Firebase & VIX (modifiable directement en production)
+  apple-touch-icon.png
+src/
+  main.tsx         # Point d'entrée principal de l'application React
+  App.tsx          # Orchestrateur central de l'interface utilisateur
+  types.ts         # Définitions des types TypeScript
+  components/      # Composants graphiques de l'interface utilisateur (onglets, graphiques)
+  utils/           # Moteurs de calculs, stockage, analyseur CSV, et volatilité
+assets/
+  styles.css       # Feuilles de style en cascade (Cascading Style Sheets / CSS)
+index.html         # Point d'entrée principal de type HyperText Markup Language (HTML)
+firestore.rules    # Règles de sécurité de la base de données Firestore
+tests/core.test.js # Suite de tests unitaires pour valider les calculs mathématiques
+```

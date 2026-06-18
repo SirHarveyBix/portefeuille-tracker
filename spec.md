@@ -1,151 +1,178 @@
 # Spécification — Suivi de portefeuille
 
-> Document de référence pour le développement futur. Version applicative courante : **1.2.0**.
-> Tenir ce fichier, `CHANGELOG.md` et le tableau `CHANGELOG` de `assets/app.js` cohérents.
+> Document de référence pour le développement futur. Version applicative courante : **2.0.1**.
+> Tenir ce fichier et la version dans le fichier App.tsx et le fichier package.json cohérents.
 
 ## 1. Objet & principes
 
-Tableau de bord personnel pour suivre ses transactions (DCA / investissement régulier)
-et piloter le rééquilibrage d'un portefeuille. Pensé comme un **site statique**, sans
-build, installable en quelques minutes par n'importe qui.
+Tableau de bord personnel pour suivre ses transactions (Investissement programmé / Dollar Cost Averaging)
+et piloter le rééquilibrage d'un portefeuille. Construit comme une **Application Monopage (Single-Page Application)**
+robuste, performante et typée.
 
 Principes directeurs :
-- **Simplicité d'installation** avant tout : un dossier, un double-clic ou un dépôt.
-- **Confidentialité** : le CSV de transactions ne quitte jamais l'appareil.
-- **Données réelles** : les chiffres de marché (VIX) viennent d'une source réelle,
+
+- **Simplicité & déploiement** : s'installe via le gestionnaire de paquets Node Package Manager et se déploie via la compilation de production et l'hébergement de fichiers Firebase.
+- **Confidentialité** : le fichier de transactions (Valeurs Séparées par des Virgules / Comma-Separated Values) ne quitte jamais l'appareil.
+- **Données réelles** : les chiffres de marché de l'Indice de Volatilité (Volatility Index) viennent d'une source réelle,
   jamais d'une valeur inventée ou calculée localement.
-- **Pas de dépendance lourde** : aucun framework, aucun bundler.
+- **Type Safety** : base de code typée en langage TypeScript pour éviter toute régression ou erreur silencieuse.
 
 ## 2. Personas
 
-- **Investisseur DCA (utilisateur principal)** — investit un montant régulier, suit son
-  prix de revient (PRU), rééquilibre vers des cibles. Utilisait un tableur ; veut les
+- **Investisseur (utilisateur principal)** — investit un montant régulier, suit son
+  Prix de Revient Unitaire, rééquilibre vers des cibles d'allocation. Utilisait un tableur ; veut les
   mêmes réflexes (montants, cibles, « combien investir ce mois ») en plus lisible, et
   la liste d'ordres prête à passer chez le courtier.
-- **Lead technique** — exige une solution simple, sûre et sans pièges (CORS, secrets
-  exposés, écritures coûteuses, accès non autorisé).
+- **Lead technique** — exige une solution simple, sûre et sans pièges (Partage des ressources entre origines multiples / Cross-Origin Resource Sharing, secrets
+  exposés, écritures de données coûteuses, accès non autorisé).
 
 ## 3. Périmètre fonctionnel
 
-### 3.1 Vue d'ensemble (dérivée du CSV)
-- KPIs : capital net déployé, moyenne nette / mois, nb positions, produit des ventes, frais.
-- Courbe du capital net déployé (cumul achats − ventes), points de vente marqués.
-- Répartition par classe d'actif (donut).
-- Investi par mois (barres) + ligne de moyenne nette.
-- Par instrument : montant net, **PRU** (prix de revient unitaire) et **quantité nette**.
-- Journal filtrable / triable.
+### 3.1 Vue d'ensemble (dérivée des transactions)
+
+- Indicateurs Clés de Performance (Key Performance Indicators) : capital net déployé, moyenne nette par mois, nombre de positions, produit des ventes, frais.
+- Courbe du capital net déployé (cumul des achats moins les ventes), points de vente marqués.
+- Répartition par classe d'actif (représentation en anneau).
+- Montant investi par mois (histogramme de barres) + ligne de moyenne nette.
+- Par instrument : montant net, **Prix de Revient Unitaire** et **quantité nette**.
+- Journal des transactions filtrable et triable.
 
 ### 3.2 Constellation
-Visualisation animée (bulles dimensionnées par le montant), dimensions adaptatives,
-animation suspendue hors écran. Survol → détail (montant, %, parts, PRU).
+
+- Visualisation animée (bulles dimensionnées par le montant), dimensions adaptatives,
+  animation suspendue hors écran. Survol d'une bulle → détail (montant, pourcentage, parts, Prix de Revient Unitaire).
+
+**Panel « Positions · efficacité des frais »** (sous la constellation) :
+
+- Tableau trié du moins au plus gourmand (ratio de frais).
+- Colonnes : instrument, montant net investi, parts nettes, Prix de Revient Unitaire, cours calculé, Pertes et Profits (Profit and Loss / Plus ou Moins-values en euro et pourcentage), frais absolus (euro), frais en pourcentage du montant acheté, badge d'efficacité.
+- Badge d'efficacité : « Efficace » (< 0,3 %), « Modéré » (< 1 %), « Gourmand » (≥ 1 %).
+- Liaison optionnelle avec l'allocation (via mapping d'alias persistant dans la Configuration d'Allocation) : si lié, le cours et les Pertes et Profits (calculés en croisant les transactions issues du fichier de transactions avec les valeurs courantes saisies manuellement dans l'allocation) s'affichent ; sinon, un bouton de liaison permet de faire le lien.
 
 ### 3.3 Allocation (rééquilibrage)
-- Allocation mensuelle, lignes cœur + satellite (montant, % réel, % cible, à investir).
-- Formules :
-  - `% réel = montant / total_cœur`
-  - cœur : `à investir = max(0 ; (total_cœur + mensuel) × %cible − montant)`
-  - satellite : `(total_cœur + mensuel) × %cible − montant` (non borné, peut être négatif)
-- Indicateurs : total, à investir, somme des cibles, **nb de lignes hors bande ±5 pts**.
-- **Export des ordres du mois** (presse-papiers).
-- Donut des cibles + écart réel/cible par ligne.
-- VIX : régime de marché à partir d'une source réelle (voir §6).
-- Sauvegarde auto (local ou Firestore) + export/import JSON.
+
+- Allocation mensuelle, lignes cœur + satellite (montant, pourcentage réel, pourcentage cible, montant à investir).
+- Formules mathématiques :
+  - `pourcentage réel = montant / total du cœur`
+  - cœur : `à investir = maximum entre 0 et ((total du cœur + apport mensuel) × pourcentage cible − montant actuel)`
+  - satellite : `(total du cœur + apport mensuel) × pourcentage cible − montant actuel` (non borné, peut être négatif)
+- Indicateurs : total, à investir, somme des cibles, **nombre de lignes hors bande ±5 points**.
+- **Export des ordres du mois** (copie dans le presse-papiers).
+- Représentation en anneau des cibles + écart réel/cible par ligne.
+- Indice de Volatilité (Volatility Index) : régime de marché à partir d'une source réelle (voir §6).
+- Sauvegarde automatique (mémoire locale du navigateur ou base de données Cloud Firestore) + export/import au format JavaScript Object Notation.
 
 ## 4. Architecture
 
-Site statique : `index.html` + `assets/{styles.css, app.js, config.js}`. `app.js` est un
-script classique (IIFE, pas de module ES) pour fonctionner aussi en `file://`.
+Application bâtie sur l'architecture hexagonale (Ports et Adaptateurs) pour isoler le domaine métier :
 
-Découpage de `app.js` (sections numérotées) : version, constantes, utilitaires, stockage
-+ auth, état, vue d'ensemble, constellation, allocation, VIX, navigation/init.
+### 4.1 Noyau Métier (Core Domain)
+
+Code pur et sans dépendance externe (sans bibliothèque d'interface utilisateur comme React, ni fournisseur d'infrastructure comme Firebase) :
+
+- [types.ts](src/types.ts) : Déclarations de types pour le modèle de portefeuille, la configuration des allocations, les transactions et la volatilité.
+- [financeMath.ts](src/utils/financeMath.ts) : Fonctions de calcul d'allocation de capital et de formatage des nombres.
+- [csvParser.ts](src/utils/csvParser.ts) : Logique d'analyse de fichiers de transactions.
+
+### 4.2 Ports
+
+Définitions des comportements requis pour stocker ou extraire des données :
+
+- Port de stockage : Les méthodes `loadAllocation`, `saveAllocation`, `loadModel` et `saveModel` de la classe `PortfolioStore` dans le fichier [storage.ts](src/utils/storage.ts).
+- Port de données de marché : Les fonctions de récupération de la volatilité dans le fichier [marketVix.ts](src/utils/marketVix.ts).
+
+### 4.3 Adaptateurs (Adapters)
+
+- **Adaptateur de Présentation (UI Adapter)** : L'application React et ses composants (Charts, AuthHeader, OverviewTab, ConstellationTab, AllocationTab) qui réagissent aux changements de données et affichent les graphiques.
+- **Adaptateur de Persistance** : Deux implémentations interchangeables dans le fichier [storage.ts](file:///Users/guillaume/code/portefeuille-tracker/src/utils/storage.ts) : la mémoire locale du navigateur (Local Storage) et le service Cloud Firestore.
+- **Adaptateur d'Indice de Marché** : Récupère la valeur de l'Indice de Volatilité (Volatility Index) depuis le Chicago Board Options Exchange (CBOE) ou Twelve Data.
+
+Flux de données :
 
 ```
-[ CSV local ] --parse--> MODEL (mémoire) --> vues (lecture seule)
-[ saisie allocation ] --> ALLOC --> Store.save --> localStorage | Firestore
-[ source VIX réelle ] --fetch--> ALLOC.vix
+[ Fichier de transactions local ] --analyse/construction--> Modèle de Portefeuille (React State) --> Vues (lecture seule)
+[ Allocation / Alias d'instruments ] --> Configuration d'Allocation (React State) --> Enregistrement --> Mémoire locale / Firestore
+[ Source réelle de l'Indice de Volatilité ] --récupération--> Configuration d'Allocation (Vix)
 ```
 
 ## 5. Modèle de données
 
-`ALLOC` (persisté) :
+Configuration d'Allocation (persistée) :
+
 ```json
 {
   "monthly": 100,
-  "core": [ { "name": "ACWI", "amount": 800, "target": 50 } ],
-  "sat":  [ { "name": "Bitcoin", "amount": 160, "target": 10 } ],
-  "vix": 18.2, "vixTs": 1750000000000, "vixDate": "2026-06-17"
+  "core": [{ "name": "ACWI", "amount": 800, "target": 50 }],
+  "sat": [{ "name": "Bitcoin", "amount": 160, "target": 10 }],
+  "aliases": { "iShares MSCI ACWI": "ACWI" },
+  "vix": 18.2,
+  "vixTimestamp": 1750000000000,
+  "vixDate": "2026-06-17"
 }
 ```
-`MODEL` (volatile, dérivé du CSV) : `t, instruments[{name,ac,net,shares,buys,avgCost}],
-classes, series, months, avgMonth, …`. Jamais persisté.
 
-Colonnes CSV utilisées (export type Trade Republic) : `date, category(=TRADING),
-type(BUY/SELL), asset_class(FUND/STOCK/CRYPTO), name, symbol, shares, price, amount
-(négatif à l'achat), fee`. **Hypothèse** : séparateur décimal `.` (point).
+Modèle de Portefeuille (volatile, dérivé des transactions du fichier importé) : `transactions, instruments[{name, assetClass, net, shares, buys, avgCost, buyAmount, buyShares}], classes, series, months, avgMonth, …`. Jamais persisté directement.
 
-## 6. VIX — sources
+Colonnes du fichier de transactions utilisées (format d'exportation type Trade Republic) : `date, category (=TRADING), type (BUY/SELL), asset_class (FUND/STOCK/CRYPTO), name, symbol, shares, price, amount (valeur négative à l'achat), fee`. **Hypothèse** : séparateur décimal sous forme de point (`.`).
 
-`config.js → VIX.source` :
-| source | clé ? | CORS | note |
-|---|---|---|---|
-| `cboe` (défaut) | non | parfois bloqué | CSV officiel `cdn.cboe.com/.../VIX_History.csv`, clôture quotidienne |
-| `proxy` | non | OK | Cloudflare Worker fourni (`vix-proxy.worker.js`) qui relaie le CSV CBOE en JSON |
-| `twelvedata` | oui (gratuite) | OK | `api.twelvedata.com/quote?symbol=VIX` |
-| `off` | — | — | saisie manuelle |
+## 6. Sources de l'Indice de Volatilité (Volatility Index / VIX)
 
-Repli : si la source échoue, message explicite + saisie manuelle possible. Valeur mise
-en cache (`vixTs`) ; ré-interrogation auto si > 6 h.
+Source paramétrable via `config.js → VIX.source` :
+
+| Source          | Clé d'accès requise ? | CORS (Partage de ressources entre origines multiples) | Note                                                                                                            |
+| --------------- | --------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `cboe` (défaut) | non                   | OK (avec repli auto)                                  | Fichier officiel `cdn.cboe.com/.../VIX_History.csv`, avec bascule automatique sur proxies CORS si direct bloqué |
+| `proxy`         | non                   | OK                                                    | Worker Cloudflare fourni (`vix-proxy.worker.js`) relayant le fichier CBOE en format JavaScript Object Notation  |
+| `twelvedata`    | oui (gratuite)        | OK                                                    | Requête API `api.twelvedata.com/quote?symbol=VIX`                                                               |
+| `off`           | —                     | —                                                     | Saisie manuelle                                                                                                 |
+
+Repli : si la source externe directe échoue (par exemple à cause du CORS), l'application bascule automatiquement sur des proxies CORS publics (AllOrigins et CorsProxy.io). Si tout échoue, un message d'erreur s'affiche pour la saisie manuelle. Valeur mise en cache temporaire (`vixTimestamp`) ; ré-interrogation automatique si la valeur en cache a plus de 6 heures.
 
 ## 7. Sécurité
 
-- **CSV jamais envoyé en ligne** (ni Firestore, ni VIX). Seul `ALLOC` est persisté.
-- **Mode en ligne (Firebase)** — deux verrous :
-  1. Interface : seul `OWNER_EMAIL` est accepté (sinon déconnexion).
-  2. Règles Firestore : `auth.uid == uid && email_verified == true && email == OWNER`.
-     Tout le reste : refusé.
-- Connexion Google : `signInWithPopup`, repli `signInWithRedirect` (Safari/PWA).
-- Les clés Web Firebase / VIX dans `config.js` **ne sont pas des secrets** ; la sécurité
-  vient des règles et de la restriction de domaine côté fournisseur. Privilégier les
-  sources VIX sans clé (cboe/proxy) pour ne rien exposer.
-- Écritures Firestore espacées (debounce 1,2 s) pour limiter coût et quota.
+- **Le fichier de transactions n'est jamais envoyé en ligne** (ni vers la base de données Cloud Firestore, ni vers les serveurs de volatilité). Seule la Configuration d'Allocation est persistée.
+- **Mode en ligne (Firebase)** — double sécurité :
+  1. Interface utilisateur : seule l'adresse de messagerie électronique configurée dans le paramètre propriétaire (`OWNER_EMAIL`) est acceptée.
+  2. Règles Firestore au niveau du serveur : `auth.uid == uid && email_verified == true && email == OWNER`. Tout autre accès est rejeté.
+- Connexion Google : utilisation de la méthode popup (signInWithPopup), avec repli vers la redirection (signInWithRedirect) pour les navigateurs mobiles et les applications web progressives.
+- Les clés de configuration présentes dans `public/assets/config.js` ne sont pas des secrets de sécurité critiques ; la protection repose sur les règles de sécurité Firestore et sur la restriction des noms de domaine autorisés chez Google Firebase.
+- Écritures différées (debounce de 1,2 seconde) pour limiter la consommation des quotas d'écriture de la base de données.
 
-## 8. Installation (résumé ; détails dans README)
+## 8. Installation
 
-- **Local** : double-clic sur `index.html`.
-- **En ligne (local storage)** : pousser le dossier sur GitHub Pages / Cloudflare Pages.
-- **En ligne (privé)** : projet Firebase (Auth Google + Firestore), remplir `config.js`,
-  déployer `firestore.rules`. Proxy VIX en option (`vix-proxy.worker.js`).
+- **Développement local** : exécuter la commande `npm run dev` pour démarrer le serveur local rapide (http://localhost:3000).
+- **Hébergement statique simple** : compiler le projet en exécutant la commande `npm run build` et pousser le contenu du dossier de production `dist/` sur des plateformes d'hébergement statique (telles que GitHub Pages ou Cloudflare Pages).
+- **Hébergement avec base de données (Firebase)** : créer un projet sur la console Google Firebase, activer l'Authentification Google et la base de données Cloud Firestore, copier la configuration web dans `public/assets/config.js`, compiler le projet en exécutant la commande `npm run build` et déployer le dossier de production `dist/` et les règles de sécurité en lançant la commande `npx firebase deploy`.
 
 ## 9. Conventions de développement
 
-- Pas de build. Édition directe des fichiers.
-- Persistance isolée dans `Store` (`load`/`save` async) — un seul point à réécrire pour
-  changer de backend.
-- Versionnage SemVer. À chaque évolution : incrémenter `APP_VERSION`, ajouter une entrée
-  au tableau `CHANGELOG` (app.js) **et** à `CHANGELOG.md`.
-- Échapper toute valeur issue de données (`esc`) avant injection HTML.
+- Validation automatique par le compilateur TypeScript (`tsc`) lors du processus de construction pour s'assurer de l'absence totale d'erreurs de typage.
+- Persistance isolée dans le magasin de données `Store` (méthodes asynchrones load et save) — point d'ancrage unique facilitant le changement de technologie de stockage de données.
+- Versionnage sémantique. À chaque évolution applicative : incrémenter le numéro de version dans le fichier de configuration `package.json` et le composant racine `src/App.tsx`.
+- Utilisation des rendus réactifs avec le format de syntaxe étendue JavaScript XML (JSX) de React, à l'exception du module de simulation physique (Constellation) qui réalise des manipulations directes du Modèle d'Objet de Document (Document Object Model) au sein d'une boucle d'animation (`requestAnimationFrame`) afin d'assurer une fréquence d'affichage fluide de 60 images par seconde.
 
-## 10. Feuille de route (issue des deux relectures)
+## 10. Feuille de route
 
-### Proposé par l'investisseur DCA
-- **Valeur de marché optionnelle par ligne** → P&L latent (PRU vs cours), rendement.
-- **Suivi de cadence** : investi réel vs objectif mensuel cumulé.
+### Proposé par l'investisseur
+
+- **Valeur de marché optionnelle par ligne** → Rendement et plus-values ou moins-values latentes (Prix de Revient Unitaire vs cours actuel).
+- **Suivi de la cadence d'investissement** : comparaison entre le montant total réellement investi et les objectifs cumulés au fil des mois.
 - **Historique des rééquilibrages** (journal des ordres passés).
-- **Bande de rééquilibrage configurable** (5/25) au lieu du ±5 fixe.
-- **Alerte VIX → inclinaison** (suggestion d'ajustement de cadence, informative).
-- **Multi-portefeuilles / multi-CSV**.
+- **Bande de rééquilibrage ajustable** (par exemple de 5 % à 25 %) à la place de la bande fixe de ±5 points.
+- **Alerte de niveau d'Indice de Volatilité** (suggestion d'ajustement de l'apport mensuel à titre informatif).
+- **Gestion de portefeuilles multiples** (plusieurs fichiers de transactions différents).
 
 ### Proposé par le lead technique
-- **Proxy VIX par défaut** si CORS CBOE s'avère systématiquement bloqué (basculer la
-  reco vers `proxy`).
-- **Tests** : extraire les fonctions pures (`build`, `parseCSV`, formules d'allocation)
-  dans un module testable (Node) + jeu de tests.
-- **Validation de schéma** à l'import JSON (au-delà du contrôle actuel core/sat).
-- **Mode hors-ligne Firestore** (`enablePersistence`) si usage mobile fréquent.
-- **Indicateur de synchro** (icône « enregistré » / « hors ligne »).
-- **App Check** (Firebase) si l'app devient publiquement connue, pour limiter l'abus.
+
+- [Fait] **Proxy d'Indice de Volatilité par défaut** : implémentation de la bascule automatique sur proxies CORS publics (AllOrigins/CorsProxy) si les requêtes directes vers le CBOE sont bloquées par le navigateur.
+- **Tests unitaires** : s'assurer que les fonctions de calcul pures restent découplées et testables via la suite de tests unitaires automatique.
+- **Validation du schéma des données d'importation** lors du chargement des fichiers de sauvegarde JavaScript Object Notation.
+- **Mode hors-ligne pour Cloud Firestore** (via l'activation de la persistance hors ligne de Firebase) pour améliorer l'expérience mobile.
+- **Indicateur visuel de synchronisation** (état connecté, hors ligne, ou synchronisé).
+- **Mise en place de Firebase App Check** pour protéger l'accès aux services Firebase et limiter les abus.
 
 ## 11. Limites connues
-- VIX : clôture quotidienne (pas d'intraday) — suffisant pour du DCA.
-- Synchro multi-appareils : dernier écrivain gagne (pas de fusion).
-- « Capital net déployé » = flux (achats − ventes), pas une valorisation de marché.
+
+- Indice de Volatilité : valeur de clôture quotidienne uniquement (pas de temps réel au cours de la journée) — suffisant pour de l'investissement programmé mensuel.
+- Synchronisation multi-appareils : pas de mécanisme complexe de fusion des modifications (la dernière modification enregistrée remplace la précédente).
+- « Capital net déployé » : correspond uniquement aux flux de capitaux cumulés (achats moins ventes), et non à la valorisation actuelle sur le marché financier.
