@@ -142,7 +142,7 @@ Repli : si la source externe directe échoue (par exemple à cause du CORS), l'a
 
 - **Développement local** : exécuter la commande `npm run dev` pour démarrer le serveur local rapide (http://localhost:3000).
 - **Hébergement statique simple** : compiler le projet en exécutant la commande `npm run build` et pousser le contenu du dossier de production `dist/` sur des plateformes d'hébergement statique (telles que GitHub Pages ou Cloudflare Pages).
-- **Hébergement avec base de données (Firebase)** : créer un projet sur la console Google Firebase, activer l'Authentification Google et la base de données Cloud Firestore, copier la configuration web dans `public/assets/config.js`, compiler le projet en exécutant la commande `npm run build` et déployer le dossier de production `dist/` et les règles de sécurité en lançant la commande `npx firebase deploy`.
+- **Hébergement avec base de données (Firebase)** : créer un projet sur la console Google Firebase, activer l'Authentification Google et la base de données Cloud Firestore, copier la configuration web dans `public/assets/config.js`, compiler le projet en exécutant la commande `npm run build` et déployer en lançant la commande `firebase deploy` (firebase-tools installé globalement via `npm install -g firebase-tools` — non inclus dans les devDependencies du projet ; la CI utilise l'action GitHub dédiée).
 
 ## 9. Conventions de développement
 
