@@ -108,6 +108,43 @@ function vixRegime(vixValue) {
   return { label: "STRESS" };
 }
 
+function calculateCompoundInterest(
+  initialCapital,
+  monthlyContribution,
+  annualRatePercent,
+  years,
+  taxRatePercent = 0,
+) {
+  const months = years * 12;
+  const monthlyRate = annualRatePercent / 12 / 100;
+
+  let finalValue = 0;
+  const totalContributions = initialCapital + monthlyContribution * months;
+
+  if (monthlyRate === 0) {
+    finalValue = totalContributions;
+  } else {
+    const compoundFactor = Math.pow(1 + monthlyRate, months);
+    finalValue =
+      initialCapital * compoundFactor +
+      monthlyContribution * ((compoundFactor - 1) / monthlyRate);
+  }
+
+  const totalInterest = Math.max(0, finalValue - totalContributions);
+  const estimatedTaxes = totalInterest * (taxRatePercent / 100);
+  const netFinalValue = finalValue - estimatedTaxes;
+  const netInterest = Math.max(0, totalInterest - estimatedTaxes);
+
+  return {
+    finalValue,
+    totalContributions,
+    totalInterest,
+    estimatedTaxes,
+    netFinalValue,
+    netInterest,
+  };
+}
+
 // --- Tests ---
 
 test("num: string numérique → nombre", () => {
@@ -222,6 +259,64 @@ test("vixRegime: 28 → STRESS", () => {
 });
 test("vixRegime: 50 → STRESS", () => {
   assertEqual(vixRegime(50).label, "STRESS");
+});
+
+test("calculateCompoundInterest: 0% interest rate", () => {
+  const result = calculateCompoundInterest(1000, 100, 0, 5);
+  assertClose(result.finalValue, 7000);
+  assertEqual(result.totalContributions, 7000);
+  assertEqual(result.totalInterest, 0);
+});
+
+test("calculateCompoundInterest: standard compounding 10% rate", () => {
+  const result = calculateCompoundInterest(10000, 500, 10, 10);
+  assertClose(result.finalValue, 129492.91, 1);
+  assertEqual(result.totalContributions, 70000);
+  assertClose(result.totalInterest, 59492.91, 1);
+});
+
+test("calculateCompoundInterest: compounding with Flat Tax (30%)", () => {
+  const result = calculateCompoundInterest(10000, 500, 10, 10, 30);
+  assertClose(result.finalValue, 129492.91, 1);
+  assertEqual(result.totalContributions, 70000);
+  assertClose(result.totalInterest, 59492.91, 1);
+  assertClose(result.estimatedTaxes, 17847.87, 1);
+  assertClose(result.netFinalValue, 111645.04, 1);
+  assertClose(result.netInterest, 41645.04, 1);
+});
+
+test("calculateCompoundInterest: compounding with PEA > 5 years (17.2%)", () => {
+  const result = calculateCompoundInterest(10000, 500, 10, 10, 17.2);
+  assertClose(result.finalValue, 129492.91, 1);
+  assertEqual(result.totalContributions, 70000);
+  assertClose(result.totalInterest, 59492.91, 1);
+  assertClose(result.estimatedTaxes, 10232.78, 1);
+  assertClose(result.netFinalValue, 119260.13, 1);
+  assertClose(result.netInterest, 49260.13, 1);
+});
+
+function calculateDriftCount(lines, coreTotalAmount) {
+  let driftCount = 0;
+  lines.forEach((line) => {
+    const amount = parseFloat(line.amount) || 0;
+    const target = parseFloat(line.target) || 0;
+    const percentReal = coreTotalAmount ? (amount / coreTotalAmount) * 100 : 0;
+    const band = line.band !== undefined ? line.band : 5;
+    if (Math.abs(percentReal - target) > band) {
+      driftCount++;
+    }
+  });
+  return driftCount;
+}
+
+test("calculateDriftCount: uses custom band and defaults to 5", () => {
+  const lines = [
+    { amount: 100, target: 10, band: 2 }, // real = 10%, target = 10%, band = 2% -> no drift
+    { amount: 130, target: 10, band: 2 }, // real = 13%, target = 10%, band = 2% -> drift (diff 3% > 2%)
+    { amount: 140, target: 10 }, // real = 14%, target = 10%, no band (default 5%) -> no drift (diff 4% <= 5%)
+    { amount: 160, target: 10 }, // real = 16%, target = 10%, no band (default 5%) -> drift (diff 6% > 5%)
+  ];
+  assertEqual(calculateDriftCount(lines, 1000), 2);
 });
 
 console.log(`\n${passedTestsCount} passed, ${failedTestsCount} failed`);

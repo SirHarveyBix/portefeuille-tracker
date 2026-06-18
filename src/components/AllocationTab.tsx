@@ -4,6 +4,8 @@ import {
   calculateInvestCore,
   calculateInvestSatellite,
   roundToZeroDecimals,
+  formatEuro,
+  calculateCompoundInterest,
 } from "../utils/financeMath";
 import { DonutChart, Legend } from "./Charts";
 import { vixRegime, fetchVixFromServer } from "../utils/marketVix";
@@ -36,6 +38,12 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
   const [vixManual, setVixManual] = useState(false);
   const [vixStatus, setVixStatus] = useState<string | null>(null);
   const [ordersButtonText, setOrdersButtonText] = useState("⎘ Ordres du mois");
+
+  const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
+  const [simulatorAnnualRate, setSimulatorAnnualRate] = useState(7);
+  const [simulatorYears, setSimulatorYears] = useState(15);
+  const [taxationRegime, setTaxationRegime] = useState("flat-tax");
+  const [customTaxRate, setCustomTaxRate] = useState(30);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -79,7 +87,8 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
     );
     coreInvestTotalAmount += investAmount;
     targetPercentSum += target;
-    if (Math.abs(percentReal - target) > 5) driftCount++;
+    const band = line.band !== undefined ? line.band : 5;
+    if (Math.abs(percentReal - target) > band) driftCount++;
     if (roundToZeroDecimals(investAmount) >= 1) {
       recommendedOrders.core.push({
         name: line.name || "—",
@@ -90,8 +99,8 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
       ...line,
       percentReal,
       investAmount,
-      under: percentReal < target - 0.5,
-      over: percentReal > target + 0.5,
+      under: percentReal < target - band,
+      over: percentReal > target + band,
     };
   });
 
@@ -107,6 +116,7 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
       coreTotalAmount,
       monthlyContribution,
     );
+    const band = line.band !== undefined ? line.band : 5;
     if (roundToZeroDecimals(investAmount) >= 1) {
       recommendedOrders.satellite.push({
         name: line.name || "—",
@@ -117,8 +127,8 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
       ...line,
       percentReal,
       investAmount,
-      under: investAmount > 0.5,
-      over: investAmount < -0.5,
+      under: percentReal < target - band,
+      over: percentReal > target + band,
     };
   });
 
@@ -166,7 +176,10 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
   };
 
   const handleAddRow = (type: "core" | "sat") => {
-    const list = [...allocation[type], { name: "", amount: 0, target: 0 }];
+    const list = [
+      ...allocation[type],
+      { name: "", amount: 0, target: 0, band: 5 },
+    ];
     onAllocationChange({ ...allocation, [type]: list });
   };
 
@@ -315,7 +328,7 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
       colorClass: "ok",
     },
     {
-      label: `Hors bande ±5pts`,
+      label: `Hors bande`,
       value: `${driftCount} ${driftCount > 1 ? "lignes" : "ligne"}`,
       colorClass: driftCount ? "warn" : "ok",
     },
@@ -463,6 +476,7 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
                 <span className="num">Montant €</span>
                 <span className="num">% réel</span>
                 <span className="num">% cible</span>
+                <span className="center">Bande %</span>
                 <span className="num">À investir</span>
                 <span className="hd-del" />
               </div>
@@ -541,6 +555,33 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
                         aria-label={`Cible — ${row.name || `Ligne ${index + 1}`}`}
                       />
                     </div>
+                    <div className="hc hc-num hc-band">
+                      <span className="h-lab">Bande %</span>
+                      {isCoreEditing ? (
+                        <input
+                          className="h-band-input"
+                          id={`hb-core-${index}`}
+                          type="number"
+                          value={row.band !== undefined ? row.band : 5}
+                          onChange={(e) =>
+                            handleRowChange(
+                              "core",
+                              index,
+                              "band",
+                              +e.target.value || 0,
+                            )
+                          }
+                          inputMode="decimal"
+                          step="0.5"
+                          min="0"
+                          aria-label={`Bande — ${row.name || `Ligne ${index + 1}`}`}
+                        />
+                      ) : (
+                        <span className={`badge-drift ${Math.abs(row.percentReal - row.target) > (row.band !== undefined ? row.band : 5) ? "drift" : "ok"}`}>
+                          {Math.abs(row.percentReal - row.target) > (row.band !== undefined ? row.band : 5) ? "🔴 Dérive" : "🟢 OK"}
+                        </span>
+                      )}
+                    </div>
                     <div className="hc hc-num hc-ainv">
                       <span className="h-lab">À investir</span>
                       <span
@@ -577,10 +618,11 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
                   >
                     {targetPercentSum.toFixed(0)} %
                   </div>
+                  <div className="hc" />
                   <div className="hc num" style={{ color: "var(--gold)" }}>
                     {roundToZeroDecimals(coreInvestTotalAmount)} €
                   </div>
-                  <div className="hc" />
+                  {isCoreEditing && <div className="hc" />}
                 </div>
               </div>
             </div>
@@ -615,6 +657,7 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
                 <span className="num">Montant €</span>
                 <span className="num">% réel</span>
                 <span className="num">% cible</span>
+                <span className="center">Bande %</span>
                 <span className="num">À investir</span>
                 <span className="hd-del" />
               </div>
@@ -693,6 +736,33 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
                         aria-label={`Cible — ${row.name || `Ligne ${index + 1}`}`}
                       />
                     </div>
+                    <div className="hc hc-num hc-band">
+                      <span className="h-lab">Bande %</span>
+                      {isSatelliteEditing ? (
+                        <input
+                          className="h-band-input"
+                          id={`hb-sat-${index}`}
+                          type="number"
+                          value={row.band !== undefined ? row.band : 5}
+                          onChange={(e) =>
+                            handleRowChange(
+                              "sat",
+                              index,
+                              "band",
+                              +e.target.value || 0,
+                            )
+                          }
+                          inputMode="decimal"
+                          step="0.5"
+                          min="0"
+                          aria-label={`Bande — ${row.name || `Ligne ${index + 1}`}`}
+                        />
+                      ) : (
+                        <span className={`badge-drift ${Math.abs(row.percentReal - row.target) > (row.band !== undefined ? row.band : 5) ? "drift" : "ok"}`}>
+                          {Math.abs(row.percentReal - row.target) > (row.band !== undefined ? row.band : 5) ? "🔴 Dérive" : "🟢 OK"}
+                        </span>
+                      )}
+                    </div>
                     <div className="hc hc-num hc-ainv">
                       <span className="h-lab">À investir</span>
                       <span
@@ -736,6 +806,7 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
                   <div className="hc" />
                   <div className="hc" />
                   <div className="hc" />
+                  {isSatelliteEditing && <div className="hc" />}
                 </div>
               </div>
             </div>
@@ -843,6 +914,285 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Compound Interest Simulator Accordion */}
+      <div className="panel simulator-card">
+        <div
+          className="simulator-header"
+          onClick={() => setIsSimulatorOpen(!isSimulatorOpen)}
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            cursor: "pointer",
+            userSelect: "none",
+          }}
+        >
+          <span className="ptitle">📈 Simulateur d'intérêts composés</span>
+          <span className={`simulator-arrow ${isSimulatorOpen ? "open" : ""}`}>
+            ▶
+          </span>
+        </div>
+        {isSimulatorOpen && (
+          <div className="simulator-content">
+            <div className="sim-inputs" style={{ display: "flex", flexWrap: "wrap", gap: "15px", marginBottom: "8px" }}>
+              <div className="sim-input-group" style={{ flex: "1 1 200px" }}>
+                <label className="h-lab" htmlFor="sim-initial-capital" style={{ fontSize: "11px" }}>
+                  Capital initial (pré-rempli)
+                </label>
+                <input
+                  id="sim-initial-capital"
+                  type="text"
+                  value={formatEuro(coreTotalAmount + satelliteTotalAmount)}
+                  readOnly
+                  style={{
+                    background: "var(--bg-2)",
+                    border: "none",
+                    borderRadius: "8px",
+                    padding: "8px 10px",
+                    color: "var(--muted)",
+                    fontFamily: "JetBrains Mono, monospace",
+                    fontSize: "14px",
+                    width: "100%",
+                    marginTop: "4px",
+                    outline: "none",
+                    cursor: "not-allowed"
+                  }}
+                />
+                <span style={{ fontSize: "10px", color: "var(--muted-2)", display: "block", marginTop: "4px" }}>
+                  Calculé automatiquement à partir du total actuel du portefeuille (Cœur + Satellite).
+                </span>
+              </div>
+
+              <div className="sim-input-group" style={{ flex: "1 1 200px" }}>
+                <label className="h-lab" htmlFor="sim-monthly-contribution" style={{ fontSize: "11px" }}>
+                  Versement mensuel (pré-rempli)
+                </label>
+                <input
+                  id="sim-monthly-contribution"
+                  type="text"
+                  value={formatEuro(allocation.monthly || 0)}
+                  readOnly
+                  style={{
+                    background: "var(--bg-2)",
+                    border: "none",
+                    borderRadius: "8px",
+                    padding: "8px 10px",
+                    color: "var(--muted)",
+                    fontFamily: "JetBrains Mono, monospace",
+                    fontSize: "14px",
+                    width: "100%",
+                    marginTop: "4px",
+                    outline: "none",
+                    cursor: "not-allowed"
+                  }}
+                />
+                <span style={{ fontSize: "10px", color: "var(--muted-2)", display: "block", marginTop: "4px" }}>
+                  Calculé automatiquement à partir de l'allocation mensuelle configurée ci-dessus.
+                </span>
+              </div>
+
+              <div className="sim-input-group" style={{ flex: "1 1 140px" }}>
+                <label className="h-lab" htmlFor="sim-rate" style={{ fontSize: "11px" }}>
+                  Taux annuel estimé (%)
+                </label>
+                <input
+                  id="sim-rate"
+                  type="number"
+                  value={simulatorAnnualRate}
+                  onChange={(e) => setSimulatorAnnualRate(+e.target.value || 0)}
+                  style={{
+                    background: "var(--bg-2)",
+                    border: "none",
+                    borderRadius: "8px",
+                    padding: "8px 10px",
+                    color: "var(--ink)",
+                    fontFamily: "JetBrains Mono, monospace",
+                    fontSize: "14px",
+                    width: "100%",
+                    marginTop: "4px",
+                    outline: "none"
+                  }}
+                  step="0.5"
+                  min="0"
+                />
+                <span style={{ fontSize: "10px", color: "var(--muted-2)", display: "block", marginTop: "4px" }}>
+                  Rendement annuel attendu du portefeuille.
+                </span>
+              </div>
+
+              <div className="sim-input-group" style={{ flex: "1 1 140px" }}>
+                <label className="h-lab" htmlFor="sim-years" style={{ fontSize: "11px" }}>
+                  Durée (années)
+                </label>
+                <input
+                  id="sim-years"
+                  type="number"
+                  value={simulatorYears}
+                  onChange={(e) => setSimulatorYears(+e.target.value || 0)}
+                  style={{
+                    background: "var(--bg-2)",
+                    border: "none",
+                    borderRadius: "8px",
+                    padding: "8px 10px",
+                    color: "var(--ink)",
+                    fontFamily: "JetBrains Mono, monospace",
+                    fontSize: "14px",
+                    width: "100%",
+                    marginTop: "4px",
+                    outline: "none"
+                  }}
+                  step="1"
+                  min="0"
+                />
+                <span style={{ fontSize: "10px", color: "var(--muted-2)", display: "block", marginTop: "4px" }}>
+                  Horizon d'investissement pour la projection.
+                </span>
+              </div>
+
+              <div className="sim-input-group" style={{ flex: "1 1 200px" }}>
+                <label className="h-lab" htmlFor="sim-tax-regime" style={{ fontSize: "11px" }}>
+                  Fiscalité
+                </label>
+                <select
+                  id="sim-tax-regime"
+                  value={taxationRegime}
+                  onChange={(e) => setTaxationRegime(e.target.value)}
+                  style={{
+                    background: "var(--bg-2)",
+                    border: "none",
+                    borderRadius: "8px",
+                    padding: "8px 10px",
+                    color: "var(--ink)",
+                    fontFamily: "inherit",
+                    fontSize: "14px",
+                    width: "100%",
+                    marginTop: "4px",
+                    outline: "none",
+                    cursor: "pointer",
+                    height: "37px"
+                  }}
+                >
+                  <option value="flat-tax">Flat Tax / PFU (30%)</option>
+                  <option value="pea">PEA &gt; 5 ans (17,2% prélèvements sociaux)</option>
+                  <option value="none">Sans fiscalité (0%)</option>
+                  <option value="custom">Personnalisée</option>
+                </select>
+                <span style={{ fontSize: "10px", color: "var(--muted-2)", display: "block", marginTop: "4px" }}>
+                  Régime fiscal de retrait ou de capitalisation.
+                </span>
+              </div>
+
+              {taxationRegime === "custom" && (
+                <div className="sim-input-group" style={{ flex: "1 1 200px" }}>
+                  <label className="h-lab" htmlFor="sim-custom-tax" style={{ fontSize: "11px" }}>
+                    Taux d'imposition personnalisé (%)
+                  </label>
+                  <input
+                    id="sim-custom-tax"
+                    type="number"
+                    value={customTaxRate}
+                    onChange={(e) => setCustomTaxRate(+e.target.value || 0)}
+                    style={{
+                      background: "var(--bg-2)",
+                      border: "none",
+                      borderRadius: "8px",
+                      padding: "8px 10px",
+                      color: "var(--ink)",
+                      fontFamily: "JetBrains Mono, monospace",
+                      fontSize: "14px",
+                      width: "100%",
+                      marginTop: "4px",
+                      outline: "none"
+                    }}
+                    step="0.1"
+                    min="0"
+                    max="100"
+                  />
+                  <span style={{ fontSize: "10px", color: "var(--muted-2)", display: "block", marginTop: "4px" }}>
+                    Saisir un taux d'imposition global à appliquer.
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {(() => {
+              const initialCapital = coreTotalAmount + satelliteTotalAmount;
+              const monthlyContrib = allocation.monthly || 0;
+              const taxRatePercent =
+                taxationRegime === "flat-tax"
+                  ? 30
+                  : taxationRegime === "pea"
+                    ? 17.2
+                    : taxationRegime === "none"
+                      ? 0
+                      : customTaxRate;
+
+              const simResult = calculateCompoundInterest(
+                initialCapital,
+                monthlyContrib,
+                simulatorAnnualRate,
+                simulatorYears,
+                taxRatePercent,
+              );
+
+              return (
+                <div className="sim-results-grid">
+                  <div className="sim-result-card-primary">
+                    <div>
+                      <div style={{ fontSize: "11px", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "JetBrains Mono, monospace" }}>
+                        Capital net final (après impôts)
+                      </div>
+                      <div style={{ fontSize: "24px", fontWeight: "700", color: "var(--gold)", marginTop: "4px", fontFamily: "JetBrains Mono, monospace" }}>
+                        {formatEuro(simResult.netFinalValue)}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: "11px", color: "var(--muted-2)", marginTop: "6px", fontFamily: "inherit" }}>
+                      Valeur brute : {formatEuro(simResult.finalValue)}
+                    </div>
+                  </div>
+
+                  <div className="sim-result-card" style={{ background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: "10px", padding: "12px" }}>
+                    <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "JetBrains Mono, monospace" }}>
+                      Total versements
+                    </div>
+                    <div style={{ fontSize: "18px", fontWeight: "600", color: "var(--ink)", marginTop: "4px", fontFamily: "JetBrains Mono, monospace" }}>
+                      {formatEuro(simResult.totalContributions)}
+                    </div>
+                  </div>
+
+                  <div className="sim-result-card" style={{ background: "rgba(91, 141, 239, 0.05)", border: "1px solid var(--line)", borderRadius: "10px", padding: "12px" }}>
+                    <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "JetBrains Mono, monospace" }}>
+                      Intérêts bruts
+                    </div>
+                    <div style={{ fontSize: "18px", fontWeight: "600", color: "var(--cobalt)", marginTop: "4px", fontFamily: "JetBrains Mono, monospace" }}>
+                      {formatEuro(simResult.totalInterest)}
+                    </div>
+                  </div>
+
+                  <div className="sim-result-card" style={{ background: "rgba(224, 112, 92, 0.05)", border: "1px solid var(--line)", borderRadius: "10px", padding: "12px" }}>
+                    <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "JetBrains Mono, monospace" }}>
+                      Impôts estimés
+                    </div>
+                    <div style={{ fontSize: "18px", fontWeight: "600", color: "var(--coral)", marginTop: "4px", fontFamily: "JetBrains Mono, monospace" }}>
+                      {formatEuro(simResult.estimatedTaxes)}
+                    </div>
+                  </div>
+
+                  <div className="sim-result-card" style={{ background: "rgba(70, 204, 163, 0.05)", border: "1px solid var(--line)", borderRadius: "10px", padding: "12px" }}>
+                    <div style={{ fontSize: "10px", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "JetBrains Mono, monospace" }}>
+                      Intérêts nets
+                    </div>
+                    <div style={{ fontSize: "18px", fontWeight: "600", color: "var(--teal)", marginTop: "4px", fontFamily: "JetBrains Mono, monospace" }}>
+                      {formatEuro(simResult.netInterest)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
       </div>
 
       <p className="anote">

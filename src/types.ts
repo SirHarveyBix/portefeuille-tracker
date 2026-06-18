@@ -72,6 +72,7 @@ export interface AllocationLine {
   name: string;
   amount: number; // current manual amount
   target: number; // target %
+  band?: number; // target tolerance band %
 }
 
 export interface AllocationConfig {

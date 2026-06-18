@@ -13,20 +13,20 @@ import {
   FirebaseAuthInstance,
 } from "./components/AuthHeader";
 
-export const APP_VERSION = "2.0.2";
+export const APP_VERSION = "2.1.0";
 
 const ALLOCATION_SEED: AllocationConfig = {
   monthly: 100,
   core: [
-    { name: "MSCI ACWI", amount: 800, target: 50 },
-    { name: "Thématique 1", amount: 240, target: 15 },
-    { name: "Thématique 2", amount: 240, target: 15 },
-    { name: "Thématique 3", amount: 160, target: 10 },
-    { name: "Or physique", amount: 160, target: 10 },
+    { name: "MSCI ACWI", amount: 800, target: 50, band: 5 },
+    { name: "Thématique 1", amount: 240, target: 15, band: 5 },
+    { name: "Thématique 2", amount: 240, target: 15, band: 5 },
+    { name: "Thématique 3", amount: 160, target: 10, band: 5 },
+    { name: "Or physique", amount: 160, target: 10, band: 5 },
   ],
   sat: [
-    { name: "Argent", amount: 40, target: 2 },
-    { name: "Bitcoin", amount: 160, target: 10 },
+    { name: "Argent", amount: 40, target: 2, band: 5 },
+    { name: "Bitcoin", amount: 160, target: 10, band: 5 },
   ],
   aliases: {},
   vix: 0,

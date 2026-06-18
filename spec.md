@@ -1,6 +1,6 @@
 # Spécification — Suivi de portefeuille
 
-> Document de référence pour le développement futur. Version applicative courante : **2.0.1**.
+> Document de référence pour le développement futur. Version applicative courante : **2.1.0**.
 > Tenir ce fichier et la version dans le fichier App.tsx et le fichier package.json cohérents.
 
 ## 1. Objet & principes
@@ -48,6 +48,7 @@ Principes directeurs :
 - Colonnes : instrument, montant net investi, parts nettes, Prix de Revient Unitaire, cours calculé, Pertes et Profits (Profit and Loss / Plus ou Moins-values en euro et pourcentage), frais absolus (euro), frais en pourcentage du montant acheté, badge d'efficacité.
 - Badge d'efficacité : « Efficace » (< 0,3 %), « Modéré » (< 1 %), « Gourmand » (≥ 1 %).
 - Liaison optionnelle avec l'allocation (via mapping d'alias persistant dans la Configuration d'Allocation) : si lié, le cours et les Pertes et Profits (calculés en croisant les transactions issues du fichier de transactions avec les valeurs courantes saisies manuellement dans l'allocation) s'affichent ; sinon, un bouton de liaison permet de faire le lien.
+- **Filtrage des positions vendues** : Exclut complètement du tableau les instruments dont les parts nettes sont nulles (`shares == 0`) s'ils ne sont pas liés ou présents dans la configuration d'allocation (évite d'afficher des positions passées et soldées chez le courtier CSV).
 
 ### 3.3 Allocation (rééquilibrage)
 
@@ -56,7 +57,14 @@ Principes directeurs :
   - `pourcentage réel = montant / total du cœur`
   - cœur : `à investir = maximum entre 0 et ((total du cœur + apport mensuel) × pourcentage cible − montant actuel)`
   - satellite : `(total du cœur + apport mensuel) × pourcentage cible − montant actuel` (non borné, peut être négatif)
-- Indicateurs : total, à investir, somme des cibles, **nombre de lignes hors bande ±5 points**.
+- Indicateurs : total, à investir, somme des cibles, **nombre de lignes hors bande**.
+- **Bandes de rééquilibrage personnalisables par ligne** :
+  - Remplacent la bande fixe de ±5 points.
+  - Saisie uniquement disponible en Mode Édition (pour préserver la lisibilité et la clarté en mode lecture).
+  - En lecture, affichage simplifié sous forme de badge de dérive (`🟢 OK` ou `🔴 Dérive`).
+- **Simulateur d'intérêts composés** :
+  - Placé dans une section repliable (accordéon) en bas de l'onglet Allocation.
+  - Permet de projeter la croissance future du capital (valeur actuelle et versements mensuels pré-remplis du portefeuille) selon un taux d'intérêt annuel, une durée et un régime fiscal (Flat Tax 30%, PEA 17,2%, aucun, ou taux personnalisé) personnalisables.
 - **Export des ordres du mois** (copie dans le presse-papiers).
 - Représentation en anneau des cibles + écart réel/cible par ligne.
 - Indice de Volatilité (Volatility Index) : régime de marché à partir d'une source réelle (voir §6).
@@ -85,7 +93,7 @@ Définitions des comportements requis pour stocker ou extraire des données :
 
 - **Adaptateur de Présentation (UI Adapter)** : L'application React et ses composants (Charts, AuthHeader, OverviewTab, ConstellationTab, AllocationTab) qui réagissent aux changements de données et affichent les graphiques.
 - **Adaptateur de Persistance** : Deux implémentations interchangeables dans le fichier [storage.ts](file:///Users/guillaume/code/portefeuille-tracker/src/utils/storage.ts) : la mémoire locale du navigateur (Local Storage) et le service Cloud Firestore.
-- **Adaptateur d'Indice de Marché** : Récupère la valeur de l'Indice de Volatilité (Volatility Index) depuis le Chicago Board Options Exchange (CBOE) ou Twelve Data.
+- **Adaptateur d'Indice de Marché** : Récupère la valeur de l'Indice de Volatilité (Volatility Index) en temps réel via l'API de ConvexTrade.
 
 Flux de données :
 
@@ -119,14 +127,12 @@ Colonnes du fichier de transactions utilisées (format d'exportation type Trade 
 
 Source paramétrable via `config.js → VIX.source` :
 
-| Source          | Clé d'accès requise ? | CORS (Partage de ressources entre origines multiples) | Note                                                                                                            |
-| --------------- | --------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `cboe` (défaut) | non                   | OK (avec repli auto)                                  | Fichier officiel `cdn.cboe.com/.../VIX_History.csv`, avec bascule automatique sur proxies CORS si direct bloqué |
-| `proxy`         | non                   | OK                                                    | Worker Cloudflare fourni (`vix-proxy.worker.js`) relayant le fichier CBOE en format JavaScript Object Notation  |
-| `twelvedata`    | oui (gratuite)        | OK                                                    | Requête API `api.twelvedata.com/quote?symbol=VIX`                                                               |
-| `off`           | —                     | —                                                     | Saisie manuelle                                                                                                 |
+| Source          | Clé d'accès requise ? | CORS (Partage de ressources entre origines multiples) | Note                                                  |
+| --------------- | --------------------- | ----------------------------------------------------- | ----------------------------------------------------- |
+| `cboe` (défaut) | non                   | OK (natif)                                            | Appelle l'API ConvexTrade (CORS ouvert, retour JSON). |
+| `off`           | —                     | —                                                     | Saisie manuelle.                                      |
 
-Repli : si la source externe directe échoue (par exemple à cause du CORS), l'application bascule automatiquement sur des proxies CORS publics (AllOrigins et CorsProxy.io). Si tout échoue, un message d'erreur s'affiche pour la saisie manuelle. Valeur mise en cache temporaire (`vixTimestamp`) ; ré-interrogation automatique si la valeur en cache a plus de 6 heures.
+Repli : en cas d'indisponibilité de la source de données, l'utilisateur est invité à saisir manuellement la valeur. Valeur mise en cache temporaire (`vixTimestamp`) et rafraîchie toutes les 6 heures.
 
 ## 7. Sécurité
 
@@ -164,7 +170,7 @@ Repli : si la source externe directe échoue (par exemple à cause du CORS), l'a
 
 ### Proposé par le lead technique
 
-- [Fait] **Proxy d'Indice de Volatilité par défaut** : implémentation de la bascule automatique sur proxies CORS publics (AllOrigins/CorsProxy) si les requêtes directes vers le CBOE sont bloquées par le navigateur.
+- [Fait] **API d'Indice de Volatilité par défaut** : intégration de l'API ConvexTrade avec CORS natif résolvant définitivement les blocages de requêtes directes.
 - **Tests unitaires** : s'assurer que les fonctions de calcul pures restent découplées et testables via la suite de tests unitaires automatique.
 - **Validation du schéma des données d'importation** lors du chargement des fichiers de sauvegarde JavaScript Object Notation.
 - **Mode hors-ligne pour Cloud Firestore** (via l'activation de la persistance hors ligne de Firebase) pour améliorer l'expérience mobile.

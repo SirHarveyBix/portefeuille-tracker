@@ -1,4 +1,4 @@
-# 📈 Suivi de Portefeuille (v2.0.1)
+# 📈 Suivi de Portefeuille (v2.1.0)
 
 Tableau de bord personnel et privé pour suivre ses transactions et piloter le rééquilibrage de ses investissements.
 Hébergement statique simple ou synchronisation sécurisée via **Firebase (Cloud Firestore)**.
@@ -7,11 +7,11 @@ Hébergement statique simple ou synchronisation sécurisée via **Firebase (Clou
 
 ## 🌟 Fonctionnalités
 
-| Onglet               | Description                                                                                                                                                  |
-| :------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **▦ Vue d'ensemble** | Indicateurs clés (KPI), courbe de capital, répartition par classe d'actifs (Donut), barres de versement mensuel et journal des transactions.                 |
-| **✦ Constellation**  | Visualisation interactive des positions sous forme de bulles animées proportionnelles et analyse détaillée de l'efficacité des frais de transaction.         |
-| **◎ Allocation**     | Calculateur de rééquilibrage (DCA cible), génération automatique d'ordres, import/export JSON de la configuration et indicateur du régime de volatilité VIX. |
+| Onglet               | Description                                                                                                                                                                                                                                      |
+| :------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **▦ Vue d'ensemble** | Indicateurs clés (KPI), courbe de capital, répartition par classe d'actifs (Donut), barres de versement mensuel et journal des transactions.                                                                                                     |
+| **✦ Constellation**  | Visualisation interactive des positions sous forme de bulles animées proportionnelles et analyse détaillée de l'efficacité des frais de transaction.                                                                                             |
+| **◎ Allocation**     | Calculateur de rééquilibrage (DCA cible) avec bandes de tolérance personnalisables par ligne, simulateur d'intérêts composés, génération automatique d'ordres, import/export JSON de la configuration et indicateur du régime de volatilité VIX. |
 
 ---
 
@@ -92,5 +92,5 @@ L'application découple ses règles métier de l'infrastructure pour faciliter l
 npm install      # Installe l'environnement de développement
 npm run dev      # Lance le serveur local (Vite)
 npm run build    # Compile l'application pour la production dans dist/
-npm test         # Lance les 25 tests unitaires automatiques
+npm test         # Lance les 30 tests unitaires automatiques
 ```

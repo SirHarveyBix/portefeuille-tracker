@@ -56,3 +56,49 @@ export const formatDate = (dateString: string): string => {
   if (!year || !month || !day) return dateString;
   return `${day}/${month}/${year.slice(2)}`;
 };
+
+export interface CompoundInterestResult {
+  finalValue: number;
+  totalContributions: number;
+  totalInterest: number;
+  estimatedTaxes: number;
+  netFinalValue: number;
+  netInterest: number;
+}
+
+export const calculateCompoundInterest = (
+  initialCapital: number,
+  monthlyContribution: number,
+  annualRatePercent: number,
+  years: number,
+  taxRatePercent: number = 0,
+): CompoundInterestResult => {
+  const months = years * 12;
+  const monthlyRate = annualRatePercent / 12 / 100;
+
+  let finalValue = 0;
+  const totalContributions = initialCapital + monthlyContribution * months;
+
+  if (monthlyRate === 0) {
+    finalValue = totalContributions;
+  } else {
+    const compoundFactor = Math.pow(1 + monthlyRate, months);
+    finalValue =
+      initialCapital * compoundFactor +
+      monthlyContribution * ((compoundFactor - 1) / monthlyRate);
+  }
+
+  const totalInterest = Math.max(0, finalValue - totalContributions);
+  const estimatedTaxes = totalInterest * (taxRatePercent / 100);
+  const netFinalValue = finalValue - estimatedTaxes;
+  const netInterest = Math.max(0, totalInterest - estimatedTaxes);
+
+  return {
+    finalValue,
+    totalContributions,
+    totalInterest,
+    estimatedTaxes,
+    netFinalValue,
+    netInterest,
+  };
+};
