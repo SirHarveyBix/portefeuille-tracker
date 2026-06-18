@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="description" content="Suivi de portefeuille personnel — privé, le CSV reste sur l'appareil.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Portefeuille">
+<meta name="theme-color" content="#0c1320">
+<title>Suivi de portefeuille</title>
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="icon" href="assets/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <p class="eyebrow">Suivi de portefeuille</p>
+      <h1>Tableau de bord</h1>
+      <div class="sub" id="period">Charge ton export pour commencer</div>
+    </div>
+    <div class="head-right">
+      <div class="account" id="account"></div>
+      <label class="drop" id="drop">
+        <span class="dlabel"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4"/><path d="M7.5 8.5 12 4l4.5 4.5"/><path d="M5 20h14"/></svg>Charger un CSV</span>
+        <span class="dtext">Glisse ton export ici (reste sur l'appareil)</span>
+        <span class="dfile" id="dfile">aucun fichier chargé</span>
+        <input type="file" id="file" accept=".csv,text/csv">
+      </label>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs" role="tablist">
+    <button data-tab="overview" class="active" role="tab" aria-selected="true"><span class="ti">▦</span><span class="tlabel">Vue d'ensemble</span></button>
+    <button data-tab="constellation" role="tab" aria-selected="false"><span class="ti">✦</span><span class="tlabel">Constellation</span></button>
+    <button data-tab="allocation" role="tab" aria-selected="false"><span class="ti">◎</span><span class="tlabel">Allocation</span></button>
+  </nav>
+
+  <!-- ===== VUE D'ENSEMBLE ===== -->
+  <section class="tab-panel active" id="tab-overview" role="tabpanel">
+    <div class="empty-state" id="ov-empty">
+      <div class="es-ic">▦</div>
+      <h3>Aucune donnée chargée</h3>
+      <p>Charge ton export de transactions (CSV). Il est analysé directement dans ton navigateur — aucune donnée n'est envoyée ni stockée en ligne.</p>
+      <button class="es-btn js-load">Charger mon CSV</button>
+    </div>
+    <div id="ov-body" style="display:none">
+      <div class="kpis" id="kpis"></div>
+      <div class="grid cols-2" style="margin-bottom:14px">
+        <div class="panel">
+          <div class="phead"><span class="ptitle">Capital net déployé dans le temps</span><span class="phint">cumulé · achats − ventes</span></div>
+          <div id="chart" style="position:relative"></div>
+        </div>
+        <div class="panel">
+          <div class="phead"><span class="ptitle">Répartition par classe</span></div>
+          <div class="donut-wrap"><div id="donut"></div><div class="legend" id="legend"></div></div>
+        </div>
+      </div>
+      <div class="panel" style="margin-bottom:14px">
+        <div class="phead"><span class="ptitle">Investi par mois</span><span class="phint" id="month-hint">—</span></div>
+        <div class="mbars" id="mbars"></div>
+      </div>
+      <div class="grid cols-2">
+        <div class="panel">
+          <div class="phead"><span class="ptitle">Journal des transactions</span>
+            <div class="filters" id="filters">
+              <button data-f="ALL" class="active">Tout</button>
+              <button data-f="BUY">Achats</button>
+              <button data-f="SELL">Ventes</button>
+            </div></div>
+          <div class="tbl-scroll"><table id="tbl"><thead><tr>
+            <th data-s="date">Date <span class="arrow">▾</span></th>
+            <th data-s="name">Instrument</th>
+            <th data-s="type">Sens</th>
+            <th class="num" data-s="shares">Parts</th>
+            <th class="num" data-s="price">Prix</th>
+            <th class="num" data-s="amount">Montant €</th>
+            <th class="num" data-s="fee">Frais €</th>
+          </tr></thead><tbody id="tbody"></tbody></table></div>
+        </div>
+        <div class="panel">
+          <div class="phead"><span class="ptitle">Par instrument</span><span class="phint">net investi</span></div>
+          <div class="bars" id="bars"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== CONSTELLATION ===== -->
+  <section class="tab-panel" id="tab-constellation" role="tabpanel">
+    <div class="empty-state" id="const-empty">
+      <div class="es-ic">✦</div>
+      <h3>La constellation s'affiche après chargement</h3>
+      <p>Chaque instrument devient une bulle dont la taille reflète le montant investi.</p>
+      <button class="es-btn js-load">Charger mon CSV</button>
+    </div>
+    <div class="const-grid" id="const-body" style="display:none">
+      <div class="const-stage" id="stage">
+        <button class="replay" id="replay">↺ rejouer</button>
+        <div class="tip" id="ctip"></div>
+      </div>
+      <div class="const-side">
+        <div class="ccard feature" id="feature"></div>
+        <div class="ccard live" id="live">
+          <div class="ck"><span class="cdot" style="background:var(--muted)"></span>Au survol</div>
+          <div class="hint">Survole une bulle pour explorer une position.</div>
+        </div>
+        <div class="ccard">
+          <div class="ck"><span class="cdot" style="background:var(--teal)"></span>Repères</div>
+          <div class="cmeta" id="cstats"></div>
+          <div class="clegend" style="margin-top:12px">
+            <span class="li"><i style="background:var(--gold)"></i>Fonds / ETF</span>
+            <span class="li"><i style="background:var(--cobalt)"></i>Actions</span>
+            <span class="li"><i style="background:var(--violet)"></i>Crypto</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ALLOCATION ===== -->
+  <section class="tab-panel" id="tab-allocation" role="tabpanel">
+    <div class="alloc-top">
+      <div class="alloc-budget">
+        <label class="alabel" for="a-monthly">Allocation mensuelle</label>
+        <div class="ainput"><input type="number" id="a-monthly" inputmode="decimal" step="10" min="0"><span>€</span></div>
+      </div>
+      <div class="achips" id="a-chips"></div>
+      <div class="atools">
+        <button id="a-orders" class="atbtn">⎘ Ordres du mois</button>
+        <button id="a-export" class="atbtn">⤓ Exporter</button>
+        <button id="a-import" class="atbtn">⤒ Importer</button>
+        <button id="a-reset" class="atbtn ghost">↺ Réinitialiser</button>
+        <input type="file" id="a-file" accept=".json,application/json" style="display:none">
+      </div>
+    </div>
+    <div class="alloc-grid">
+      <div class="panel">
+        <div class="phead"><span class="ptitle">Portefeuille cœur</span><button class="addrow" data-t="core">+ ligne</button></div>
+        <div class="holds">
+          <div class="holds-head"><span>Titre</span><span class="num">Montant €</span><span class="num">% réel</span><span class="num">% cible</span><span class="num">À investir</span><span></span></div>
+          <div id="core-list"></div>
+          <div id="core-foot"></div>
+        </div>
+      </div>
+      <div class="alloc-side">
+        <div class="panel">
+          <div class="phead"><span class="ptitle">Cibles</span><span class="phint">% du cœur</span></div>
+          <div class="donut-wrap"><div id="a-donut"></div><div class="legend" id="a-legend"></div></div>
+        </div>
+        <div class="panel vixcard" id="vixcard"></div>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:14px">
+      <div class="phead"><span class="ptitle">Satellite</span>
+        <div style="display:flex;gap:10px;align-items:center">
+          <span class="phint">cibles en % du cœur · « à investir » peut être négatif</span>
+          <button class="addrow" data-t="sat">+ ligne</button></div></div>
+      <div class="holds">
+        <div class="holds-head"><span>Titre</span><span class="num">Montant €</span><span class="num">% réel</span><span class="num">% cible</span><span class="num">À investir</span><span></span></div>
+        <div id="sat-list"></div>
+        <div id="sat-foot"></div>
+      </div>
+    </div>
+    <p class="anote">Sauvegarde automatique (locale, ou en ligne si Firebase est configuré). Export/import JSON disponible pour la sauvegarde et le transfert.</p>
+  </section>
+
+  <footer>
+    <div>Le CSV reste sur l'appareil · seules les valeurs d'allocation sont conservées</div>
+    <button class="verbtn" id="verbtn">v0.0.0</button>
+  </footer>
+</div>
+
+<!-- fenêtre changelog -->
+<div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-label="Notes de version">
+  <div class="modal">
+    <h2>Nouveautés</h2>
+    <div class="msub">Historique des versions</div>
+    <div id="cl-list"></div>
+    <button class="close" id="cl-close">Fermer</button>
+  </div>
+</div>
+
+<!-- porte de connexion (mode en ligne uniquement) -->
+<div class="overlay" id="authgate" role="dialog" aria-modal="true" aria-label="Connexion">
+  <div class="modal authmodal">
+    <div class="lock">🔒</div>
+    <h2>Accès privé</h2>
+    <p>Ce tableau de bord est réservé à son propriétaire. Connecte-toi pour continuer.</p>
+    <button class="gbtn" id="ag-btn">Se connecter avec Google</button>
+    <div class="ag-msg" id="ag-msg"></div>
+  </div>
+</div>
+
+<!-- Firebase (compat). Sans réseau ou sans config, ces scripts sont ignorés. -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="assets/config.js"></script>
+<script src="assets/app.js" defer></script>
+</body>
+</html>

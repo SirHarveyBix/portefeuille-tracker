@@ -1,0 +1,14 @@
+# Données personnelles — NE JAMAIS committer
+*.numbers
+Exportation_*.csv
+mon-portefeuille*.json
+portefeuille-allocation*.json
+/data/
+/private/
+
+# Système / éditeurs
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp

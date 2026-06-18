@@ -1,0 +1,78 @@
+[debug] [2026-06-18T09:23:13.693Z] ----------------------------------------------------------------------
+[debug] [2026-06-18T09:23:13.695Z] Command:       /Users/guillaume_lefort/.nvm/versions/node/v24.16.0/bin/node /Users/guillaume_lefort/.nvm/versions/node/v24.16.0/bin/firebase init hosting
+[debug] [2026-06-18T09:23:13.695Z] CLI Version:   15.21.0
+[debug] [2026-06-18T09:23:13.695Z] Platform:      darwin
+[debug] [2026-06-18T09:23:13.695Z] Node Version:  v24.16.0
+[debug] [2026-06-18T09:23:13.695Z] Detected Agent: unknown
+[debug] [2026-06-18T09:23:13.695Z] Time:          Thu Jun 18 2026 11:23:13 GMT+0200 (heure d’été d’Europe centrale)
+[debug] [2026-06-18T09:23:13.695Z] ----------------------------------------------------------------------
+[debug] 
+[info] 
+     ######## #### ########  ######## ########     ###     ######  ########
+     ##        ##  ##     ## ##       ##     ##  ##   ##  ##       ##
+     ######    ##  ########  ######   ########  #########  ######  ######
+     ##        ##  ##    ##  ##       ##     ## ##     ##       ## ##
+     ##       #### ##     ## ######## ########  ##     ##  ######  ########
+
+You're about to initialize a Firebase project in this directory:
+
+  /Users/guillaume_lefort/code/portfolio-tracker
+
+Before we get started, keep in mind:
+
+  * You are initializing within an existing Firebase project directory
+
+[info] 
+=== Project Setup
+[info] 
+[info] First, let's associate this project directory with a Firebase project.
+[info] You can create multiple project aliases by running firebase use --add, 
+[info] 
+[debug] [2026-06-18T09:23:14.369Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-06-18T09:23:14.369Z] > authorizing via signed-in user (gui.lefort.17@gmail.com)
+[debug] [2026-06-18T09:23:14.369Z] Checked if tokens are valid: true, expires at: 1781777362679
+[debug] [2026-06-18T09:23:14.369Z] Checked if tokens are valid: true, expires at: 1781777362679
+[debug] [2026-06-18T09:23:14.369Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/tracker-portefeuille-550a7 [none]
+[debug] [2026-06-18T09:23:14.720Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/tracker-portefeuille-550a7 200
+[debug] [2026-06-18T09:23:14.721Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/tracker-portefeuille-550a7 {"projectId":"tracker-portefeuille-550a7","projectNumber":"762292359426","displayName":"tracker portefeuille","name":"projects/tracker-portefeuille-550a7","resources":{"hostingSite":"tracker-portefeuille-550a7"},"state":"ACTIVE","etag":"1_d1571813-1918-418e-ae02-7dc88e068315"}
+[info] i  Using project tracker-portefeuille-550a7 (tracker portefeuille) . 
+[info] 
+=== Hosting Setup
+[debug] [2026-06-18T09:23:14.731Z] Checked if tokens are valid: true, expires at: 1781777362679
+[debug] [2026-06-18T09:23:14.731Z] Checked if tokens are valid: true, expires at: 1781777362679
+[debug] [2026-06-18T09:23:14.731Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/tracker-portefeuille-550a7 [none]
+[debug] [2026-06-18T09:23:15.044Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/tracker-portefeuille-550a7 200
+[debug] [2026-06-18T09:23:15.045Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/tracker-portefeuille-550a7 {"projectId":"tracker-portefeuille-550a7","projectNumber":"762292359426","displayName":"tracker portefeuille","name":"projects/tracker-portefeuille-550a7","resources":{"hostingSite":"tracker-portefeuille-550a7"},"state":"ACTIVE","etag":"1_d1571813-1918-418e-ae02-7dc88e068315"}
+[info] 
+[info] Your public directory is the folder (relative to your project directory) that
+[info] will contain Hosting assets to be uploaded with firebase deploy. If you
+[info] have a build process for your assets, use your build's output directory.
+[info] 
+[info] 
+[info] i  Didn't detect a .git folder. Assuming /Users/guillaume_lefort/code/portfolio-tracker is the project root. 
+[info] i  Authorizing with GitHub to upload your service account to a GitHub repository's secrets store. 
+[info] 
+[info] Visit this URL on this device to log in:
+[info] https://github.com/login/oauth/authorize?client_id=89cf50f02ac6aaed3484&state=1051286791&redirect_uri=http%3A%2F%2Flocalhost%3A9005&scope=read%3Auser%20repo%20public_repo
+[info] 
+[info] Waiting for authentication...
+[debug] [2026-06-18T09:24:09.254Z] >>> [apiv2][query] POST https://github.com/login/oauth/access_token [none]
+[debug] [2026-06-18T09:24:09.254Z] >>> [apiv2][body] POST https://github.com/login/oauth/access_token [stream]
+[debug] [2026-06-18T09:24:09.812Z] <<< [apiv2][status] POST https://github.com/login/oauth/access_token 200
+[debug] [2026-06-18T09:24:09.813Z] <<< [apiv2][body] POST https://github.com/login/oauth/access_token {"access_token":"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","token_type":"bearer","scope":"read:user,repo"}
+[debug] [2026-06-18T09:24:09.829Z] >>> [apiv2][query] GET https://api.github.com/user [none]
+[debug] [2026-06-18T09:24:10.256Z] <<< [apiv2][status] GET https://api.github.com/user 200
+[debug] [2026-06-18T09:24:10.256Z] <<< [apiv2][body] GET https://api.github.com/user {"login":"SirHarveyBix","id":79848679,"node_id":"MDQ6VXNlcjc5ODQ4Njc5","avatar_url":"https://avatars.githubusercontent.com/u/79848679?v=4","gravatar_id":"","url":"https://api.github.com/users/SirHarveyBix","html_url":"https://github.com/SirHarveyBix","followers_url":"https://api.github.com/users/SirHarveyBix/followers","following_url":"https://api.github.com/users/SirHarveyBix/following{/other_user}","gists_url":"https://api.github.com/users/SirHarveyBix/gists{/gist_id}","starred_url":"https://api.github.com/users/SirHarveyBix/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/SirHarveyBix/subscriptions","organizations_url":"https://api.github.com/users/SirHarveyBix/orgs","repos_url":"https://api.github.com/users/SirHarveyBix/repos","events_url":"https://api.github.com/users/SirHarveyBix/events{/privacy}","received_events_url":"https://api.github.com/users/SirHarveyBix/received_events","type":"User","user_view_type":"private","site_admin":false,"name":"Guillaume Lefort","company":"SNCF Connect & Tech","blog":"https://www.linkedin.com/in/lefort-guillaume/","location":"Nantes","email":null,"hireable":true,"bio":"mostly course projects (from Udemy), and ol' collaborative ones","twitter_username":null,"notification_email":null,"public_repos":32,"public_gists":4,"followers":10,"following":21,"created_at":"2021-03-01T12:48:11Z","updated_at":"2026-06-18T09:23:57Z","private_gists":11,"total_private_repos":7,"owned_private_repos":7,"disk_usage":183871,"collaborators":0,"two_factor_authentication":false,"plan":{"name":"free","space":976562499,"collaborators":0,"private_repos":10000}}
+[info] 
+[info] ✔  Success! Logged into GitHub as SirHarveyBix 
+[info] 
+[debug] [2026-06-18T09:24:41.077Z] >>> [apiv2][query] GET https://api.github.com/repos/SirHarveyBix/portefeuille-tracker/actions/secrets/public-key type=owner
+[debug] [2026-06-18T09:24:41.343Z] <<< [apiv2][status] GET https://api.github.com/repos/SirHarveyBix/portefeuille-tracker/actions/secrets/public-key 404
+[debug] [2026-06-18T09:24:41.343Z] <<< [apiv2][body] GET https://api.github.com/repos/SirHarveyBix/portefeuille-tracker/actions/secrets/public-key {"message":"Not Found","documentation_url":"https://docs.github.com/rest/actions/secrets#get-a-repository-public-key","status":"404"}
+[info] 
+[info] 
+[error] ⚠  The provided authorization cannot be used with this repository. If this repository is in an organization, did you remember to grant access? 
+[info] 
+[info] i  Action required: Visit this URL to ensure access has been granted to the appropriate organization(s) for the Firebase CLI GitHub OAuth App: 
+[info] https://github.com/settings/connections/applications/89cf50f02ac6aaed3484
+[info] 
