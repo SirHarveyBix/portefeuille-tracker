@@ -12,6 +12,7 @@ interface ConstellationTabProps {
   model: PortfolioModel;
   allocation: AllocationConfig;
   onAliasChange: (csvName: string, allocName: string) => void;
+  onAliasUnlink: (csvName: string) => void;
 }
 
 const getMeta = getAssetMeta;
@@ -29,6 +30,7 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
   model,
   allocation,
   onAliasChange,
+  onAliasUnlink,
 }) => {
   const [hoveredNode, setHoveredNode] = useState<PhysicsNode | null>(null);
   const [tooltip, setTooltip] = useState<{
@@ -231,7 +233,8 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
 
   const findAllocMatch = (csvName: string) => {
     const aliasTarget = allocation.aliases?.[csvName];
-    if (aliasTarget) {
+    if (aliasTarget !== undefined) {
+      if (aliasTarget === "") return null; // force-unlinked by user
       const found = allocList.find((line) => line.name === aliasTarget);
       if (found) return found;
     }
@@ -245,7 +248,8 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
     const realPercent =
       model.totalNet > 0 ? (instrument.net / model.totalNet) * 100 : 0;
     const match = findAllocMatch(instrument.name);
-    const currentValue = match ? +match.amount || 0 : null;
+    // Guard: only use allocation amount when it's > 0 (0 = seed/unset)
+    const currentValue = match && +match.amount > 0 ? +match.amount : null;
     const profitAndLoss =
       currentValue !== null ? currentValue - instrument.net : null;
     const profitAndLossPercent =
@@ -256,7 +260,10 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
       currentValue !== null && Math.abs(instrument.shares) > 0
         ? currentValue / Math.abs(instrument.shares)
         : null;
-    const linked = !!allocation.aliases?.[instrument.name] || !!match;
+    const isAliasLinked =
+      !!allocation.aliases?.[instrument.name] &&
+      allocation.aliases[instrument.name] !== "";
+    const linked = !!match || isAliasLinked;
     return {
       ...instrument,
       fees,
@@ -266,6 +273,7 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
       profitAndLoss,
       profitAndLossPercent,
       calculatedPrice,
+      isAliasLinked,
       linked,
     };
   });
@@ -487,8 +495,18 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
           <span className="num">Net investi</span>
           <span className="num">Parts</span>
           <span className="num">PRU</span>
-          <span className="num">Cours</span>
-          <span className="num">P&L</span>
+          <span
+            className="num"
+            title="Prix unitaire calculé : valorisation saisie dans l'Allocation ÷ parts détenues"
+          >
+            Cours *
+          </span>
+          <span
+            className="num"
+            title="P&L estimé : valorisation Allocation − net investi CSV"
+          >
+            P&L *
+          </span>
           <span className="num">Frais €</span>
           <span className="num">Frais %</span>
           <span className="center">Score</span>
@@ -542,14 +560,20 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
                   style={{ background: getMeta(row.assetClass).hex }}
                 />
                 <span className="cr-name" title={row.name}>
-                  {shortName(row.name)}
-                </span>
-                <span className="cr-net">{formatEuro(row.net)}</span>
-                <span className="cr-shares">{sharesText}</span>
-                <span className="cr-pru">{pruText}</span>
-                <span className="cr-price">{priceText}</span>
-                <span className="cr-pnl" style={{ color: pnlColor }}>
-                  {pnlText}
+                  <span className="cr-name-text">{shortName(row.name)}</span>
+                  {row.linked && (
+                    <button
+                      className="cr-unlink-btn"
+                      title="Délier de l'allocation"
+                      aria-label="Délier de l'allocation"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onAliasUnlink(row.name);
+                      }}
+                    >
+                      ⇥
+                    </button>
+                  )}
                   {!row.linked && allocList.length > 0 && (
                     <span className="cr-link">
                       <button
@@ -561,7 +585,7 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
                           setActiveSelectCsv(isSelectOpen ? null : row.name);
                         }}
                       >
-                        🔗
+                        ⇤
                       </button>
                       <select
                         className="cr-link-sel"
@@ -585,6 +609,13 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
                       </select>
                     </span>
                   )}
+                </span>
+                <span className="cr-net">{formatEuro(row.net)}</span>
+                <span className="cr-shares">{sharesText}</span>
+                <span className="cr-pru">{pruText}</span>
+                <span className="cr-price">{priceText}</span>
+                <span className="cr-pnl" style={{ color: pnlColor }}>
+                  {pnlText}
                 </span>
                 <span className="cr-fees">{formatEuro(row.fees, 1)}</span>
                 <div className="cr-fee">
@@ -647,6 +678,7 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
             className="archive-header"
             role="button"
             tabIndex={0}
+            aria-expanded={isArchiveOpen}
             onClick={() => setIsArchiveOpen((open) => !open)}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {

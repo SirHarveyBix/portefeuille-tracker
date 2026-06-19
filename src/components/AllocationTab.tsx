@@ -720,18 +720,27 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
 
               <div id="core-foot">
                 <div className="holds-foot">
-                  <div className="hc">Portefeuille</div>
-                  <div className="hc num">
+                  <div className="hc" data-label="Portefeuille">
+                    Portefeuille
+                  </div>
+                  <div className="hc num" data-label="Total €">
                     {roundToZeroDecimals(coreTotalAmount)} €
                   </div>
-                  <div className="hc num">100 %</div>
+                  <div className="hc num" data-label="% réel">
+                    100 %
+                  </div>
                   <div
                     className={`hc num tsum ${Math.abs(targetPercentSum - 100) < 0.5 ? "good" : "bad"}`}
+                    data-label="% cibles"
                   >
                     {targetPercentSum.toFixed(0)} %
                   </div>
                   <div className="hc" />
-                  <div className="hc num" style={{ color: "var(--gold)" }}>
+                  <div
+                    className="hc num"
+                    data-label="À investir"
+                    style={{ color: "var(--gold)" }}
+                  >
                     {roundToZeroDecimals(coreInvestTotalAmount)} €
                   </div>
                   {isCoreEditing && <div className="hc" />}
@@ -904,11 +913,13 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
 
               <div id="sat-foot">
                 <div className="holds-foot">
-                  <div className="hc">Satellites</div>
-                  <div className="hc num">
+                  <div className="hc" data-label="Satellites">
+                    Satellites
+                  </div>
+                  <div className="hc num" data-label="Total €">
                     {roundToZeroDecimals(satelliteTotalAmount)} €
                   </div>
-                  <div className="hc num">
+                  <div className="hc num" data-label="% du cœur">
                     {coreTotalAmount
                       ? (
                           (satelliteTotalAmount / coreTotalAmount) *
@@ -1036,6 +1047,7 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
           className="simulator-header"
           role="button"
           tabIndex={0}
+          aria-expanded={isSimulatorOpen}
           onClick={() => setIsSimulatorOpen(!isSimulatorOpen)}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {

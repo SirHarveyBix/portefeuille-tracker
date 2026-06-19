@@ -213,10 +213,10 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ model }) => {
           {archivedInstruments.length > 0 && (
             <div className="archive-section" style={{ marginTop: "10px" }}>
               <div
-                className="archive-header"
+                className="archive-header archive-header--compact"
                 role="button"
                 tabIndex={0}
-                style={{ padding: "8px 0" }}
+                aria-expanded={showInstrumentArchive}
                 onClick={() => setShowInstrumentArchive((v) => !v)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {

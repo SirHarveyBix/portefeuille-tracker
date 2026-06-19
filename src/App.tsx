@@ -13,7 +13,7 @@ import {
   FirebaseAuthInstance,
 } from "./components/AuthHeader";
 
-export const APP_VERSION = "2.2.0";
+export const APP_VERSION = "2.3.0";
 
 const ALLOCATION_SEED: AllocationConfig = {
   monthly: 100,
@@ -246,6 +246,11 @@ export const App: React.FC = () => {
     handleAllocationChange({ ...allocation, aliases: nextAliases });
   };
 
+  const handleAliasUnlink = (csvName: string) => {
+    const nextAliases = { ...allocation.aliases, [csvName]: "" };
+    handleAllocationChange({ ...allocation, aliases: nextAliases });
+  };
+
   const handleSignIn = () => {
     if (firebaseAuth && firebaseGlobal) {
       const provider = new firebaseGlobal.auth.GoogleAuthProvider();
@@ -278,7 +283,7 @@ export const App: React.FC = () => {
           justifyContent: "center",
           color: "var(--muted)",
           fontSize: "14px",
-          fontFamily: "var(--font-sans)",
+          fontFamily: "'Inter', system-ui, sans-serif",
         }}
       >
         Initialisation de l'application…
@@ -327,7 +332,12 @@ export const App: React.FC = () => {
         </div>
       </header>
 
-      <nav id="tabs" className="tabs" role="tablist">
+      <nav
+        id="tabs"
+        className="tabs"
+        role="tablist"
+        aria-label="Navigation principale"
+      >
         <button
           className={activeTab === "overview" ? "active" : ""}
           onClick={() => setActiveTab("overview")}
@@ -335,7 +345,9 @@ export const App: React.FC = () => {
           aria-controls="tab-overview"
           role="tab"
         >
-          <span className="ti">▦</span>
+          <span className="ti" aria-hidden="true">
+            ▦
+          </span>
           <span className="tlabel">Vue d'ensemble</span>
         </button>
         <button
@@ -345,7 +357,9 @@ export const App: React.FC = () => {
           aria-controls="tab-constellation"
           role="tab"
         >
-          <span className="ti">✦</span>
+          <span className="ti" aria-hidden="true">
+            ✦
+          </span>
           <span className="tlabel">Constellation</span>
         </button>
         <button
@@ -355,7 +369,9 @@ export const App: React.FC = () => {
           aria-controls="tab-allocation"
           role="tab"
         >
-          <span className="ti">◎</span>
+          <span className="ti" aria-hidden="true">
+            ◎
+          </span>
           <span className="tlabel">Allocation</span>
         </button>
       </nav>
@@ -388,6 +404,7 @@ export const App: React.FC = () => {
               model={model}
               allocation={allocation}
               onAliasChange={handleAliasChange}
+              onAliasUnlink={handleAliasUnlink}
             />
           ) : (
             <div id="const-empty" className="empty-state">

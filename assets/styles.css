@@ -23,6 +23,10 @@
   --nav-h: 0px;
   --bg-3: #1c2d4a;
   --bg-card: #14213a;
+  --panel-gap: 14px;
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --font-display: "Space Grotesk", sans-serif;
 }
 * {
   box-sizing: border-box;
@@ -690,8 +694,6 @@ td.name {
 }
 .const-stage.dim .bubble circle {
   opacity: 0.28;
-}
-.const-stage.dim .bubble circle {
   will-change: filter;
 }
 .const-stage.dim .bubble.hot circle {
@@ -818,11 +820,11 @@ td.name {
 /* ── Analyse des coûts ── */
 .cost-head {
   display: grid;
-  grid-template-columns: 24px 12px 1fr 80px 54px 64px 64px 110px 54px 120px 76px;
+  grid-template-columns: 24px 12px 1fr 80px 54px 64px 64px 150px 54px 120px 76px;
   gap: 10px;
   padding: 6px 4px 10px;
   border-bottom: 1px solid var(--line);
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: var(--muted-2);
   text-transform: uppercase;
@@ -831,13 +833,17 @@ td.name {
 }
 .cost-head .num {
   text-align: right;
+  cursor: default;
+}
+.cost-head .num[title] {
+  cursor: help;
 }
 .cost-head .center {
   text-align: center;
 }
 .cost-row {
   display: grid;
-  grid-template-columns: 24px 12px 1fr 80px 54px 64px 64px 110px 54px 120px 76px;
+  grid-template-columns: 24px 12px 1fr 80px 54px 64px 64px 150px 54px 120px 76px;
   align-items: center;
   gap: 10px;
   padding: 8px 4px;
@@ -860,9 +866,39 @@ td.name {
 }
 .cr-name {
   font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.cr-name-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+.cr-unlink-btn {
+  background: none;
+  border: 1px solid var(--line);
+  color: var(--muted-2);
+  font-size: 11px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  cursor: pointer;
+  flex: 0 0 auto;
+  line-height: 1;
+  transition: all 0.15s;
+  min-width: 24px;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cr-unlink-btn:hover {
+  border-color: var(--coral);
+  color: var(--coral);
+  background: rgba(224, 112, 92, 0.08);
 }
 .cr-net,
 .cr-shares,
@@ -919,24 +955,33 @@ td.name {
   position: relative;
   display: inline-flex;
   align-items: center;
-  margin-left: 6px;
+  flex: 0 0 auto;
 }
 .cr-link-btn {
   background: none;
-  border: none;
+  border: 1px solid var(--line);
+  color: var(--muted-2);
   cursor: pointer;
-  padding: 2px 4px;
+  padding: 2px 5px;
   font-size: 11px;
   border-radius: 4px;
-  transition: background 0.2s;
+  transition: all 0.15s;
+  min-width: 24px;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 .cr-link-btn:hover {
-  background: var(--bg-3);
+  border-color: var(--gold);
+  color: var(--gold);
+  background: rgba(232, 179, 57, 0.08);
 }
 .cr-link-sel {
   display: none;
   position: absolute;
-  right: 0;
+  left: 0;
   top: 100%;
   z-index: 10;
   background: var(--bg-card);
@@ -946,8 +991,8 @@ td.name {
   padding: 4px 8px;
   font-family: inherit;
   font-size: 11px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  max-width: 150px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  min-width: 180px;
 }
 .cr-score {
   font-family: "JetBrains Mono", monospace;
@@ -2111,6 +2156,13 @@ footer {
     min-height: 44px;
     min-width: 44px;
   }
+  .cr-link-btn,
+  .cr-unlink-btn {
+    min-height: 36px;
+    min-width: 36px;
+    padding: 6px 8px;
+    font-size: 13px;
+  }
 
   /* archive : 2 colonnes sur mobile */
   .archive-row {
@@ -2218,6 +2270,11 @@ footer {
   transform: rotate(90deg);
 }
 
+/* ── Utilitaires ── */
+.mt-panel {
+  margin-top: var(--panel-gap);
+}
+
 /* ── Section Archive (instruments vendus) ── */
 .archive-section {
   margin-top: 14px;
@@ -2228,7 +2285,10 @@ footer {
   justify-content: space-between;
   cursor: pointer;
   user-select: none;
-  padding: 10px 0 10px;
+  padding: 10px 0;
+}
+.archive-header--compact {
+  padding: 8px 0;
 }
 .archive-header:hover .ptitle {
   color: var(--gold);
@@ -2478,9 +2538,11 @@ footer {
     box-shadow 0.2s;
 }
 
-.sim-result-card-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(232, 179, 57, 0.1);
+@media (prefers-reduced-motion: no-preference) {
+  .sim-result-card-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(232, 179, 57, 0.1);
+  }
 }
 
 @media (min-width: 480px) {
