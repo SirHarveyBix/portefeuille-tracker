@@ -1865,7 +1865,7 @@ footer {
    *   L3 : À investir (pleine largeur)
    */
   .hold {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 10px 8px;
     align-items: start;
     border: 1px solid var(--line);
@@ -1874,23 +1874,39 @@ footer {
     padding: 14px 14px 12px;
     position: relative;
   }
+  .allocation-panel:not(.editing) .hold {
+    padding: 10px 12px 8px;
+    gap: 6px 8px;
+  }
   .hc-name {
-    grid-column: 1 / -1;
+    grid-row: 1;
+    grid-column: span 2;
   }
   .hc-amt {
+    grid-row: 2;
     grid-column: 1;
   }
   .hc-reel {
+    grid-row: 2;
     grid-column: 2;
   }
   .hc-cible {
-    grid-column: 1;
+    grid-row: 2;
+    grid-column: 3;
   }
   .hc-band {
-    grid-column: 2;
-    display: block;
+    grid-row: 1;
+    grid-column: 3;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    height: 100%;
+  }
+  .hc-band .h-lab {
+    display: none !important;
   }
   .hc-ainv {
+    grid-row: 3;
     grid-column: 1 / -1;
   }
 
@@ -1971,6 +1987,9 @@ footer {
   /* ── Mode édition ── */
   .allocation-panel.editing .hold {
     padding-top: 42px;
+  }
+  .allocation-panel.editing .hc-band {
+    align-items: flex-end;
   }
   .allocation-panel.editing .hc-del {
     display: flex;

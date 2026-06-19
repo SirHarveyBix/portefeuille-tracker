@@ -1,4 +1,4 @@
-# 📈 Suivi de Portefeuille (v2.1.0)
+# 📈 Suivi de Portefeuille (v2.1.1)
 
 Tableau de bord personnel et privé pour suivre ses transactions et piloter le rééquilibrage de ses investissements.
 Hébergement statique simple ou synchronisation sécurisée via **Firebase (Cloud Firestore)**.

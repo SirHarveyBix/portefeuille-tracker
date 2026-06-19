@@ -1,6 +1,6 @@
 {
   "name": "portfolio-tracker",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Tableau de bord personnel pour suivre ses transactions",
   "main": "index.html",
   "type": "module",

@@ -1,6 +1,6 @@
 # Spécification — Suivi de portefeuille
 
-> Document de référence pour le développement futur. Version applicative courante : **2.1.0**.
+> Document de référence pour le développement futur. Version applicative courante : **2.1.1**.
 > Tenir ce fichier et la version dans le fichier App.tsx et le fichier package.json cohérents.
 
 ## 1. Objet & principes

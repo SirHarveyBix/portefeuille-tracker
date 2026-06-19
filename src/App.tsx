@@ -13,7 +13,7 @@ import {
   FirebaseAuthInstance,
 } from "./components/AuthHeader";
 
-export const APP_VERSION = "2.1.0";
+export const APP_VERSION = "2.1.1";
 
 const ALLOCATION_SEED: AllocationConfig = {
   monthly: 100,
