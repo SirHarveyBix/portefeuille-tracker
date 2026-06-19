@@ -13,7 +13,7 @@ import {
   FirebaseAuthInstance,
 } from "./components/AuthHeader";
 
-export const APP_VERSION = "2.3.0";
+export const APP_VERSION = "2.4.0";
 
 const ALLOCATION_SEED: AllocationConfig = {
   monthly: 100,
@@ -379,7 +379,7 @@ export const App: React.FC = () => {
       {activeTab === "overview" && (
         <section className="tab-panel active" id="tab-overview" role="tabpanel">
           {model ? (
-            <OverviewTab model={model} />
+            <OverviewTab model={model} allocation={allocation} />
           ) : (
             <div id="ov-empty" className="empty-state">
               <div className="es-ic">▦</div>

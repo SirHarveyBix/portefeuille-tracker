@@ -1002,6 +1002,12 @@ td.name {
   border-radius: 7px;
   letter-spacing: 0.04em;
   text-align: center;
+  background: color-mix(
+    in srgb,
+    var(--badge-color, var(--gold)) 13%,
+    transparent
+  );
+  color: var(--badge-color, var(--gold));
 }
 
 /* ---------------- allocation (liste en grille, pas un <table>) -------- */
@@ -1390,6 +1396,12 @@ td.name {
   padding: 4px 10px;
   border-radius: 8px;
   letter-spacing: 0.04em;
+  background: color-mix(
+    in srgb,
+    var(--badge-color, var(--gold)) 13%,
+    transparent
+  );
+  color: var(--badge-color, var(--gold));
 }
 .vgauge {
   height: 9px;
@@ -1614,6 +1626,7 @@ footer {
   }
   .wrap {
     padding-top: max(18px, env(safe-area-inset-top));
+    padding-bottom: calc(var(--nav-h) + 20px);
   }
 
   /* en-tête compact */
@@ -1774,7 +1787,7 @@ footer {
     display: none;
   }
   .cost-row {
-    grid-template-columns: 22px 10px 1fr auto;
+    grid-template-columns: 22px 10px 1fr 88px;
     grid-template-rows: auto auto auto auto auto;
     gap: 4px 8px;
     padding: 10px 4px;
@@ -2190,6 +2203,31 @@ footer {
     gap: 8px;
     align-items: flex-start;
   }
+
+  /* P&L mobile : masquer la partie € pour garder juste le % */
+  .pnl-eur {
+    display: none;
+  }
+  .cr-pnl {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  /* Dropdown lier/délier : ancré à droite pour éviter le débordement */
+  .cr-link-sel {
+    left: auto;
+    right: 0;
+    max-width: calc(100vw - 48px);
+  }
+
+  /* Footer allocation : "À investir" seul → pleine largeur */
+  .hc-ainv-foot {
+    grid-column: 1 / -1;
+    border-top: 1px solid rgba(232, 179, 57, 0.25);
+    padding-top: 8px;
+    margin-top: 4px;
+  }
 }
 @media (max-width: 380px) {
   .achips,
@@ -2250,6 +2288,13 @@ footer {
 }
 .buy-history-row .bh-amount {
   color: var(--ink);
+}
+/* Aligner les en-têtes numériques à droite comme les données */
+.bh-parts-h,
+.bh-price-h,
+.bh-amt-h,
+.bh-fee-h {
+  text-align: right;
 }
 .cost-row.expandable {
   cursor: pointer;
@@ -2368,6 +2413,24 @@ footer {
   color: var(--muted-2);
   font-size: 12px;
   font-style: italic;
+}
+.archive-row.expandable {
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.archive-row.expandable:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+.archive-row.expanded {
+  background: rgba(232, 179, 57, 0.04);
+}
+.cost-note {
+  margin: 8px 4px 0;
+  font-size: 10.5px;
+  color: var(--muted-2);
+  font-family: var(--font-mono);
+  font-style: italic;
+  line-height: 1.4;
 }
 
 /* ── Simulateur d'intérêts composés ── */
@@ -2514,13 +2577,25 @@ footer {
 }
 
 .sim-result-card {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--bg-2);
   transition:
     border-color 0.2s,
     background 0.2s;
 }
-
 .sim-result-card:hover {
-  border-color: var(--cobalt) !important;
+  border-color: var(--cobalt);
+}
+.sim-result-card--interest {
+  background: rgba(91, 141, 239, 0.05);
+}
+.sim-result-card--tax {
+  background: rgba(224, 112, 92, 0.05);
+}
+.sim-result-card--net {
+  background: rgba(70, 204, 163, 0.05);
 }
 
 .sim-result-card-primary {
@@ -2557,5 +2632,187 @@ footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
+  }
+}
+
+/* ── Cadence d'investissement ── */
+.cadence-panel {
+  margin-top: var(--panel-gap);
+}
+.cadence-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 14px;
+}
+.cadence-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.cadence-value {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 22px;
+  letter-spacing: -0.01em;
+}
+.cadence-sub {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted-2);
+  margin-top: 4px;
+}
+.cadence-track {
+  position: relative;
+  height: 8px;
+  background: var(--bg-2);
+  border-radius: 6px;
+  margin-top: 16px;
+  overflow: hidden;
+}
+.cadence-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+  will-change: width;
+}
+.cadence-fill.ahead {
+  background: linear-gradient(90deg, var(--teal), #38b38d);
+}
+.cadence-fill.behind {
+  background: linear-gradient(90deg, var(--gold), #c9941f);
+}
+.cadence-pct {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink);
+  mix-blend-mode: difference;
+}
+
+/* ── VIX suggestion DCA ── */
+.vsug {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.025);
+  border-radius: 8px;
+  border-left: 2px solid var(--line);
+  line-height: 1.4;
+}
+
+/* ── Historique des rééquilibrages ── */
+.rh-panel {
+  margin-top: var(--panel-gap);
+}
+.rh-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+}
+.rh-header:hover .ptitle {
+  color: var(--gold);
+}
+.rh-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.rh-list {
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rh-entry {
+  background: var(--bg-2);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.rh-entry-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.rh-date {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted-2);
+}
+.rh-total {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--gold);
+}
+.rh-orders {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rh-order {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.rh-cat {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  flex: 0 0 auto;
+  letter-spacing: 0.04em;
+}
+.rh-cat--core {
+  background: rgba(91, 141, 239, 0.15);
+  color: var(--cobalt);
+}
+.rh-cat--sat {
+  background: rgba(160, 123, 240, 0.15);
+  color: var(--violet);
+}
+.rh-name {
+  flex: 1;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.rh-inv {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink);
+  flex: 0 0 auto;
+}
+
+/* Mobile responsive for new components */
+@media (max-width: 760px) {
+  .cadence-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .cadence-value {
+    font-size: 18px;
+  }
+  .rh-list {
+    gap: 8px;
+  }
+  .rh-entry {
+    padding: 10px;
   }
 }

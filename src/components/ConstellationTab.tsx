@@ -314,6 +314,10 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
           id="stage"
           ref={stageRef}
           style={{ position: "relative" }}
+          onClick={() => {
+            setHoveredNode(null);
+            setTooltip(null);
+          }}
         >
           <svg
             ref={svgRef}
@@ -335,6 +339,16 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
                   onMouseEnter={() => handleMouseEnter(node)}
                   onMouseLeave={handleMouseLeave}
                   onMouseMove={(event) => handleMouseMove(event, node)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (hoveredNode?.name === node.name) {
+                      setHoveredNode(null);
+                      setTooltip(null);
+                    } else {
+                      setHoveredNode(node);
+                      setTooltip(null);
+                    }
+                  }}
                 >
                   <circle r={node.radius} fill={meta.hex} fillOpacity={0.92} />
                   {node.radius > 30 && (
@@ -432,7 +446,7 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
                   fontSize: "12px",
                 }}
               >
-                Survole une bulle pour voir ses détails en direct.
+                Sélectionne une bulle pour voir ses détails.
               </div>
             )}
           </div>
@@ -511,6 +525,13 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
           <span className="num">Frais %</span>
           <span className="center">Score</span>
         </div>
+        {activeCostRows.some((r) => r.currentValue !== null) && (
+          <p className="cost-note">
+            * Cours et P&amp;L estimés depuis la valorisation saisie dans
+            l'onglet Allocation — pas un cours de marché live. À mettre à jour
+            régulièrement pour des P&amp;L fiables.
+          </p>
+        )}
         <div id="cost-list">
           {activeCostRows.map((row, index) => {
             const badge = feeBadge(row.feeRatio);
@@ -531,13 +552,16 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
                   ) + " €"
                 : "—";
 
-            let pnlText = "—";
+            const pnlHasValue = row.profitAndLoss !== null;
+            let pnlEur = "";
+            let pnlPct = "";
             let pnlColor = "var(--muted-2)";
-            if (row.profitAndLoss !== null) {
-              const sign = row.profitAndLoss >= 0 ? "+" : "";
-              pnlText = `${sign}${formatEuro(row.profitAndLoss, 2)} (${sign}${(row.profitAndLossPercent ?? 0).toFixed(1)}%)`;
-              if (row.profitAndLoss > 0.01) pnlColor = "var(--teal)";
-              else if (row.profitAndLoss < -0.01) pnlColor = "var(--coral)";
+            if (pnlHasValue) {
+              const sign = row.profitAndLoss! >= 0 ? "+" : "";
+              pnlEur = `${sign}${formatEuro(row.profitAndLoss!, 2)}`;
+              pnlPct = `(${sign}${(row.profitAndLossPercent ?? 0).toFixed(1)}%)`;
+              if (row.profitAndLoss! > 0.01) pnlColor = "var(--teal)";
+              else if (row.profitAndLoss! < -0.01) pnlColor = "var(--coral)";
             }
 
             const isSelectOpen = activeSelectCsv === row.name;
@@ -615,7 +639,14 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
                 <span className="cr-pru">{pruText}</span>
                 <span className="cr-price">{priceText}</span>
                 <span className="cr-pnl" style={{ color: pnlColor }}>
-                  {pnlText}
+                  {pnlHasValue ? (
+                    <>
+                      <span className="pnl-eur">{pnlEur} </span>
+                      <span className="pnl-pct">{pnlPct}</span>
+                    </>
+                  ) : (
+                    "—"
+                  )}
                 </span>
                 <span className="cr-fees">{formatEuro(row.fees, 1)}</span>
                 <div className="cr-fee">
@@ -629,7 +660,7 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
                 </div>
                 <span
                   className="cr-score"
-                  style={{ background: `${badge.color}22`, color: badge.color }}
+                  style={{ "--badge-color": badge.color }}
                 >
                   {badge.label}
                 </span>
@@ -642,8 +673,8 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
                       <span>Instrument</span>
                       <span className="bh-parts-h">Parts</span>
                       <span className="bh-price-h">Prix unit.</span>
-                      <span>Montant</span>
-                      <span>Frais</span>
+                      <span className="bh-amt-h">Montant</span>
+                      <span className="bh-fee-h">Frais</span>
                     </div>
                     {buyTxs.map((tx, txIdx) => (
                       <div className="buy-history-row" key={txIdx}>
@@ -705,7 +736,7 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
               <div className="archive-head">
                 <span />
                 <span>Instrument</span>
-                <span>Investi</span>
+                <span className="ah-bought">Investi</span>
                 <span>Produit</span>
                 <span>P&L réalisé</span>
               </div>
@@ -748,10 +779,10 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
                         <div className="buy-history-head">
                           <span>Date</span>
                           <span>Instrument</span>
-                          <span>Parts</span>
-                          <span>Prix unit.</span>
-                          <span>Montant</span>
-                          <span>Frais</span>
+                          <span className="bh-parts-h">Parts</span>
+                          <span className="bh-price-h">Prix unit.</span>
+                          <span className="bh-amt-h">Montant</span>
+                          <span className="bh-fee-h">Frais</span>
                         </div>
                         {archiveBuyTxs.map((tx, txIdx) => (
                           <div className="buy-history-row" key={txIdx}>

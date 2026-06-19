@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { PortfolioModel, Transaction } from "../types";
+import { PortfolioModel, Transaction, AllocationConfig } from "../types";
 import {
   LineChart,
   BarChart,
@@ -7,18 +7,30 @@ import {
   Legend,
   InstrumentBars,
 } from "./Charts";
-import { formatEuro, formatNumber, formatDate } from "../utils/financeMath";
+import {
+  formatEuro,
+  formatNumber,
+  formatDate,
+  shortName,
+} from "../utils/financeMath";
 import { CLASS_META } from "../utils/assetMeta";
 
 interface OverviewTabProps {
   model: PortfolioModel;
+  allocation?: AllocationConfig;
 }
 
-export const OverviewTab: React.FC<OverviewTabProps> = ({ model }) => {
+export const OverviewTab: React.FC<OverviewTabProps> = ({
+  model,
+  allocation,
+}) => {
   const [filter, setFilter] = useState<"ALL" | "BUY" | "SELL">("ALL");
   const [sortKey, setSortKey] = useState<keyof Transaction>("date");
   const [sortDirection, setSortDirection] = useState<-1 | 1>(-1);
   const [showInstrumentArchive, setShowInstrumentArchive] = useState(false);
+  const [expandedArchivedInstrument, setExpandedArchivedInstrument] = useState<
+    string | null
+  >(null);
 
   // 1. Filtered and sorted transactions
   const filteredTransactions = useMemo(
@@ -149,6 +161,65 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ model }) => {
         </div>
       </div>
 
+      {/* Cadence d'investissement */}
+      {allocation &&
+        (allocation.monthly ?? 0) > 0 &&
+        model.months.length > 0 &&
+        (() => {
+          const target = allocation.monthly * model.months.length;
+          const actual = model.netDeployed;
+          const delta = actual - target;
+          const pct = Math.min(200, Math.max(0, (actual / target) * 100));
+          const monthsDiff = Math.abs(delta) / allocation.monthly;
+          return (
+            <div className="panel cadence-panel">
+              <div className="phead">
+                <span className="ptitle">Cadence d'investissement</span>
+                <span className="phint">
+                  {model.months.length} mois · {formatEuro(allocation.monthly)}
+                  /mois
+                </span>
+              </div>
+              <div className="cadence-grid">
+                <div className="cadence-stat">
+                  <div className="cadence-label">Objectif cumulé</div>
+                  <div className="cadence-value">{formatEuro(target)}</div>
+                  <div className="cadence-sub">
+                    {model.months.length} × {formatEuro(allocation.monthly)}
+                  </div>
+                </div>
+                <div className="cadence-stat">
+                  <div className="cadence-label">Net investi réel</div>
+                  <div className="cadence-value">{formatEuro(actual)}</div>
+                  <div className="cadence-sub">achats − ventes cumulés</div>
+                </div>
+                <div className="cadence-stat">
+                  <div className="cadence-label">
+                    {delta >= 0 ? "Avance" : "Retard"}
+                  </div>
+                  <div
+                    className={`cadence-value ${delta >= 0 ? "pos" : "neg"}`}
+                  >
+                    {delta >= 0 ? "+" : ""}
+                    {formatEuro(delta)}
+                  </div>
+                  <div className="cadence-sub">
+                    {monthsDiff.toFixed(1)} mois{" "}
+                    {delta >= 0 ? "d'avance" : "de retard"}
+                  </div>
+                </div>
+              </div>
+              <div className="cadence-track">
+                <div
+                  className={`cadence-fill ${delta >= 0 ? "ahead" : "behind"}`}
+                  style={{ width: `${Math.min(100, pct)}%` }}
+                />
+                <span className="cadence-pct">{pct.toFixed(0)}%</span>
+              </div>
+            </div>
+          );
+        })()}
+
       {/* Main dashboard grid */}
       <div className="grid cols-2" style={{ marginTop: "14px" }}>
         {/* Net Capital Deployed Curve */}
@@ -239,25 +310,36 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ model }) => {
                   <div className="archive-head">
                     <span />
                     <span>Instrument</span>
-                    <span>Investi</span>
+                    <span className="ah-bought">Investi</span>
                     <span>Produit</span>
                     <span>P&L réalisé</span>
                   </div>
                   {archivedInstruments.map((inst, idx) => {
                     const proceeds = sellProceedsMap[inst.name] || 0;
                     const pnl = proceeds - inst.buyAmount;
+                    const isExpanded = expandedArchivedInstrument === inst.name;
+                    const buyTxs = isExpanded
+                      ? model.transactions
+                          .filter(
+                            (t) => t.name === inst.name && t.type === "BUY",
+                          )
+                          .sort((a, b) => a.date.localeCompare(b.date))
+                      : [];
                     return (
-                      <div className="archive-row" key={idx}>
-                        <span
-                          className="ar-dot"
-                          style={{
-                            background:
-                              CLASS_META[inst.assetClass]?.hex ||
-                              CLASS_META.OTHER.hex,
-                          }}
-                        />
+                      <div
+                        className={`archive-row expandable ${isExpanded ? "expanded" : ""}`}
+                        key={idx}
+                        onClick={() =>
+                          setExpandedArchivedInstrument(
+                            isExpanded ? null : inst.name,
+                          )
+                        }
+                      >
+                        <span className="cr-expand" style={{ fontSize: "9px" }}>
+                          ▶
+                        </span>
                         <span className="ar-name" title={inst.name}>
-                          {inst.name}
+                          {shortName(inst.name)}
                         </span>
                         <span className="ar-bought">
                           {formatEuro(inst.buyAmount)}
@@ -267,6 +349,43 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ model }) => {
                           {pnl >= 0 ? "+" : ""}
                           {formatEuro(pnl, 2)}
                         </span>
+                        {isExpanded && buyTxs.length > 0 && (
+                          <div className="buy-history">
+                            <div className="buy-history-head">
+                              <span>Date</span>
+                              <span>Instrument</span>
+                              <span className="bh-parts-h">Parts</span>
+                              <span className="bh-price-h">Prix unit.</span>
+                              <span>Montant</span>
+                              <span>Frais</span>
+                            </div>
+                            {buyTxs.map((tx, txIdx) => (
+                              <div className="buy-history-row" key={txIdx}>
+                                <span className="bh-date">{tx.date}</span>
+                                <span>{tx.symbol || shortName(tx.name)}</span>
+                                <span className="bh-shares">
+                                  {formatNumber(
+                                    tx.shares,
+                                    tx.shares < 1 ? 4 : 2,
+                                  )}
+                                </span>
+                                <span className="bh-price">
+                                  {formatNumber(
+                                    tx.price,
+                                    tx.price < 10 ? 4 : 2,
+                                  )}{" "}
+                                  €
+                                </span>
+                                <span className="bh-amount">
+                                  {formatEuro(Math.abs(tx.amount), 2)}
+                                </span>
+                                <span className="bh-fee">
+                                  {tx.fee > 0 ? formatEuro(tx.fee, 2) : "—"}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     );
                   })}

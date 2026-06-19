@@ -1,6 +1,6 @@
 # Spécification — Suivi de portefeuille
 
-> Document de référence pour le développement futur. Version applicative courante : **2.3.0**.
+> Document de référence pour le développement futur. Version applicative courante : **2.4.0**.
 > Tenir ce fichier et la version dans le fichier App.tsx et le fichier package.json cohérents.
 
 ## 1. Objet & principes
@@ -49,7 +49,7 @@ Principes directeurs :
 - Badge d'efficacité : « Efficace » (< 0,3 %), « Modéré » (< 1 %), « Gourmand » (≥ 1 %).
 - Liaison optionnelle avec l'allocation (via mapping d'alias persistant dans la Configuration d'Allocation) : si lié, le **Cours \* (calculé)** et les **P&L \* (estimés)** — dérivés du montant de valorisation saisi manuellement dans l'allocation — s'affichent avec un astérisque et un tooltip explicitant leur source ; sinon, un bouton de liaison (⇤) permet de faire le lien. Un bouton de déliaison (⇥) permet de dissocier à tout moment une liaison explicite **ou** une correspondance automatique par nom. La déliaison est stockée comme alias vide (`""`) dans le champ `aliases`.
 - **Guard valorisation nulle** : si le montant d'allocation d'une ligne liée est à 0 (non encore renseigné), les colonnes Cours et P&L affichent `—` au lieu de données erronées.
-- **Filtrage des positions vendues** : Exclut complètement du tableau les instruments dont les parts nettes sont nulles (`shares == 0`) s'ils ne sont pas liés ou présents dans la configuration d'allocation (évite d'afficher des positions passées et soldées chez le courtier CSV).
+- **[Fait] Filtrage des positions vendues** : Exclut complètement du tableau les instruments dont les parts nettes sont nulles (`shares == 0`) s'ils ne sont pas liés ou présents dans la configuration d'allocation (évite d'afficher des positions passées et soldées chez le courtier CSV).
 - **[Fait] Historique d'achat par indice** : Clic sur une ligne du tableau → déplie la liste chronologique des transactions d'achat (date, symbole, parts, prix unitaire, montant, frais). Disponible aussi sur les lignes de l'Archive.
 - **[Fait] Section Archive** : Panneau repliable (accordéon) sous le tableau des frais, listant les instruments entièrement revendus avec montant total investi, produit des ventes et P&L réalisé. Chaque ligne est expansible pour accéder à l'historique des achats.
 
@@ -164,19 +164,19 @@ Repli : en cas d'indisponibilité de la source de données, l'utilisateur est in
 
 ### Proposé par l'investisseur
 
-- **Valeur de marché optionnelle par ligne** → Rendement et plus-values ou moins-values latentes (Prix de Revient Unitaire vs cours actuel).
-- **Suivi de la cadence d'investissement** : comparaison entre le montant total réellement investi et les objectifs cumulés au fil des mois.
-- **Historique des rééquilibrages** (journal des ordres passés).
-- **Alerte de niveau d'Indice de Volatilité** (suggestion d'ajustement de l'apport mensuel à titre informatif).
-- **Gestion de portefeuilles multiples** (plusieurs fichiers de transactions différents).
-- **Suivi de la cadence d'investissement** : comparaison entre le montant total réellement investi et les objectifs cumulés au fil des mois.
-- **Historique des rééquilibrages** (journal des ordres passés).
+- [Fait] **Suivi de la cadence d'investissement** : panneau dans Vue d'ensemble comparant le montant réellement investi à l'objectif cumulé (mensualité × mois actifs), avec barre de progression et delta en avance/retard.
+- [Fait] **Historique des rééquilibrages** : chaque copie des ordres du mois sauvegarde automatiquement une entrée dans `rebalanceHistory` (max 24 entrées). Visualisable dans un accordion en bas de l'onglet Allocation.
+- [Fait] **Suggestion DCA liée au VIX** : texte contextuel sous la note de régime — suggestion adaptée selon le niveau de volatilité (CALME/NORMAL/ÉLEVÉ/STRESS).
+- **Gestion de portefeuilles multiples** (plusieurs fichiers de transactions différents) — complexité architecture, reporté.
+
+> **Supprimé** : « Valeur de marché optionnelle par ligne » — nécessitait un appel à une API externe de prix (service tiers), incompatible avec le principe de confidentialité et de déploiement simple. Le Cours*/P&L* via valorisation manuelle dans l'allocation remplit cet objectif sans dépendance externe.
 
 ### Proposé par le lead technique
 
 - [Fait] **API d'Indice de Volatilité par défaut** : intégration de l'API ConvexTrade avec CORS natif résolvant définitivement les blocages de requêtes directes.
 - [Fait] **Revue de code complète (v2.2)** : CSS dupliqué supprimé, contraste KPI amélioré, `will-change` sur les transitions animées, cibles tactiles mobiles ≥ 44 px, `useMemo` sur les calculs coûteux de OverviewTab, `O(n)` dans csvParser (Set pour les dates de vente), extraction de `downloadBlob`, `effectiveBand` inline simplifié, attributs ARIA (`aria-controls`, `role="status"`, `role="button"`, `aria-label`) sur les éléments interactifs.
 - [Fait] **Revue UI/UX & accessibilité (v2.3)** : boutons lier/délier déplacés dans la colonne nom (cr-name flex), `aria-expanded` sur tous les accordéons, `aria-hidden` sur les icônes décoratives, `aria-label` sur nav, guard montant=0 pour Cours/P&L, variables CSS `--font-sans`/`--font-mono`/`--font-display`/`--panel-gap`, règle CSS dupliquée supprimée, colonne P&L élargie (110px → 150px), touch targets mobiles boutons liaison ≥ 36 px, `data-label` sur les pieds de tableau d'allocation pour mobile, fix `prefers-reduced-motion` transform simulateur, sentinel `""` dans aliases pour déliaison force.
+- [Fait] **Corrections CSS mobile & roadmap investisseur (v2.4)** : bug `ah-bought` classe manquante dans archive-head (mobile masquage colonne), bug `bh-parts-h`/`bh-price-h` dans buy-history-head de l'archive Constellation, padding-bottom `.wrap` mobile corrigé (`calc(--nav-h + 20px)`). Filtrage positions vendues (shares=0) marqué [Fait] — déjà implémenté.
 - **Tests unitaires** : s'assurer que les fonctions de calcul pures restent découplées et testables via la suite de tests unitaires automatique.
 - **Validation du schéma des données d'importation** lors du chargement des fichiers de sauvegarde JavaScript Object Notation.
 - **Mode hors-ligne pour Cloud Firestore** (via l'activation de la persistance hors ligne de Firebase) pour améliorer l'expérience mobile.

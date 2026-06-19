@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { AllocationConfig, AllocationLine } from "../types";
+import { AllocationConfig, AllocationLine, RebalanceEntry } from "../types";
 import {
   calculateInvestCore,
   calculateInvestSatellite,
@@ -73,57 +73,25 @@ const SimulatorResults: React.FC<SimulatorResultsProps> = ({
           Valeur brute : {formatEuro(r.finalValue)}
         </div>
       </div>
-      <div
-        className="sim-result-card"
-        style={{
-          background: "var(--bg-2)",
-          border: "1px solid var(--line)",
-          borderRadius: "10px",
-          padding: "12px",
-        }}
-      >
+      <div className="sim-result-card">
         <div className="sim-result-label">Total versements</div>
         <div className="sim-result-value">
           {formatEuro(r.totalContributions)}
         </div>
       </div>
-      <div
-        className="sim-result-card"
-        style={{
-          background: "rgba(91,141,239,0.05)",
-          border: "1px solid var(--line)",
-          borderRadius: "10px",
-          padding: "12px",
-        }}
-      >
+      <div className="sim-result-card sim-result-card--interest">
         <div className="sim-result-label">Intérêts bruts</div>
         <div className="sim-result-value sim-result-value--interest">
           {formatEuro(r.totalInterest)}
         </div>
       </div>
-      <div
-        className="sim-result-card"
-        style={{
-          background: "rgba(224,112,92,0.05)",
-          border: "1px solid var(--line)",
-          borderRadius: "10px",
-          padding: "12px",
-        }}
-      >
+      <div className="sim-result-card sim-result-card--tax">
         <div className="sim-result-label">Impôts estimés</div>
         <div className="sim-result-value sim-result-value--tax">
           {formatEuro(r.estimatedTaxes)}
         </div>
       </div>
-      <div
-        className="sim-result-card"
-        style={{
-          background: "rgba(70,204,163,0.05)",
-          border: "1px solid var(--line)",
-          borderRadius: "10px",
-          padding: "12px",
-        }}
-      >
+      <div className="sim-result-card sim-result-card--net">
         <div className="sim-result-label">Intérêts nets</div>
         <div className="sim-result-value sim-result-value--net">
           {formatEuro(r.netInterest)}
@@ -146,6 +114,7 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
   const [ordersButtonText, setOrdersButtonText] = useState("⎘ Ordres du mois");
 
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [simulatorAnnualRate, setSimulatorAnnualRate] = useState(7);
   const [simulatorYears, setSimulatorYears] = useState(15);
   const [taxationRegime, setTaxationRegime] = useState("flat-tax");
@@ -319,6 +288,7 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
   // Export orders to clipboard
   const handleCopyOrders = () => {
     const today = new Date().toLocaleDateString("fr-FR");
+    const todayISO = new Date().toISOString().slice(0, 10);
     let ordersText = `Ordres du mois — ${today}\n`;
     if (recommendedOrders.core.length) {
       ordersText +=
@@ -337,6 +307,35 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
     ordersText += `\n\nTotal à investir : ${recommendedOrders.total} €`;
     if (!recommendedOrders.core.length && !recommendedOrders.satellite.length) {
       ordersText = "Aucun ordre à passer ce mois (tout est à la cible).";
+    }
+
+    // Save to rebalance history
+    if (
+      recommendedOrders.core.length > 0 ||
+      recommendedOrders.satellite.length > 0
+    ) {
+      const entry: RebalanceEntry = {
+        date: todayISO,
+        orders: [
+          ...recommendedOrders.core.map((order) => ({
+            name: order.name,
+            inv: order.inv,
+            category: "core" as const,
+          })),
+          ...recommendedOrders.satellite.map((order) => ({
+            name: order.name,
+            inv: order.inv,
+            category: "sat" as const,
+          })),
+        ],
+        total: recommendedOrders.total,
+      };
+      const history = [...(allocation.rebalanceHistory || [])];
+      const existingIdx = history.findIndex((e) => e.date === todayISO);
+      if (existingIdx >= 0) history[existingIdx] = entry;
+      else history.unshift(entry);
+      if (history.length > 24) history.length = 24;
+      onAllocationChange({ ...allocation, rebalanceHistory: history });
     }
 
     const copySuccessCallback = () => {
@@ -486,13 +485,32 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
     convextrade: "ConvexTrade",
     cboe: "ConvexTrade", // Compatibilité ascendante
   };
-  const vixStatusLabel = vixStatus
-    ? vixStatus
-    : allocation.vixTimestamp
-      ? `${sourceLabels[vixConfiguration.source] ?? "source"} · ${allocation.vixDate || new Date(allocation.vixTimestamp).toLocaleDateString("fr-FR")}`
-      : isVixActive
-        ? "prêt à récupérer"
-        : "saisie manuelle";
+  const vixStatusLabel = (() => {
+    if (vixStatus) return vixStatus;
+    if (!allocation.vixTimestamp)
+      return isVixActive ? "prêt à récupérer" : "saisie manuelle";
+    const source = sourceLabels[vixConfiguration.source] ?? "source";
+    let dataLabel = "";
+    if (allocation.vixDate) {
+      const d = new Date(allocation.vixDate + "T12:00:00Z");
+      if (!isNaN(d.getTime()))
+        dataLabel = `données ${d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}`;
+    }
+    const fetchDate = new Date(allocation.vixTimestamp);
+    const diffH = (Date.now() - fetchDate.getTime()) / 3600000;
+    const fetchLabel =
+      diffH < 1
+        ? "à l'instant"
+        : diffH < 24
+          ? `il y a ${Math.round(diffH)}h`
+          : fetchDate.toLocaleDateString("fr-FR", {
+              day: "2-digit",
+              month: "2-digit",
+            });
+    return [source, dataLabel, `vérifié ${fetchLabel}`]
+      .filter(Boolean)
+      .join(" · ");
+  })();
 
   return (
     <>
@@ -737,7 +755,7 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
                   </div>
                   <div className="hc" />
                   <div
-                    className="hc num"
+                    className="hc num hc-ainv-foot"
                     data-label="À investir"
                     style={{ color: "var(--gold)" }}
                   >
@@ -993,10 +1011,7 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
               </div>
               <span
                 className="vregime"
-                style={{
-                  background: `${marketRegime.color}22`,
-                  color: marketRegime.color,
-                }}
+                style={{ "--badge-color": marketRegime.color }}
               >
                 {marketRegime.label}
               </span>
@@ -1015,6 +1030,20 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
               <span>50</span>
             </div>
             <div className="vnote">{marketRegime.note}</div>
+            {vixValue > 0 && (
+              <div className="vsug">
+                {vixValue < 15 &&
+                  "Conditions sereines — DCA habituel recommandé."}
+                {vixValue >= 15 &&
+                  vixValue < 20 &&
+                  "Régime normal — maintenir le plan DCA."}
+                {vixValue >= 20 &&
+                  vixValue < 28 &&
+                  "Volatilité élevée — lisser les achats sur 2 à 3 passages."}
+                {vixValue >= 28 &&
+                  "Marché sous stress — discipline DCA, éviter de modifier les cibles."}
+              </div>
+            )}
             <div className="vactions">
               <span className="vts" id="vix-ts">
                 {vixStatusLabel}
@@ -1187,6 +1216,59 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
           </div>
         )}
       </div>
+
+      {/* Rebalance History Accordion */}
+      {(allocation.rebalanceHistory?.length ?? 0) > 0 && (
+        <div className="panel rh-panel">
+          <div
+            className="rh-header"
+            role="button"
+            tabIndex={0}
+            aria-expanded={isHistoryOpen}
+            onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setIsHistoryOpen(!isHistoryOpen);
+              }
+            }}
+          >
+            <span className="ptitle">Historique des rééquilibrages</span>
+            <div className="rh-header-right">
+              <span className="phint">
+                {allocation.rebalanceHistory?.length} ordre
+                {(allocation.rebalanceHistory?.length ?? 0) > 1 ? "s" : ""}
+              </span>
+              <span className={`archive-arrow ${isHistoryOpen ? "open" : ""}`}>
+                ▶
+              </span>
+            </div>
+          </div>
+          {isHistoryOpen && (
+            <div className="rh-list">
+              {allocation.rebalanceHistory?.map((entry, idx) => (
+                <div className="rh-entry" key={idx}>
+                  <div className="rh-entry-head">
+                    <span className="rh-date">{entry.date}</span>
+                    <span className="rh-total">{entry.total} €</span>
+                  </div>
+                  <div className="rh-orders">
+                    {entry.orders.map((order, oidx) => (
+                      <div className="rh-order" key={oidx}>
+                        <span className={`rh-cat rh-cat--${order.category}`}>
+                          {order.category === "core" ? "C" : "S"}
+                        </span>
+                        <span className="rh-name">{order.name}</span>
+                        <span className="rh-inv">{order.inv} €</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <p className="anote">
         Sauvegarde automatique (locale, ou en ligne si Firebase est configuré).

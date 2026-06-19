@@ -75,6 +75,12 @@ export interface AllocationLine {
   band?: number; // target tolerance band %
 }
 
+export interface RebalanceEntry {
+  date: string;
+  orders: { name: string; inv: number; category: "core" | "sat" }[];
+  total: number;
+}
+
 export interface AllocationConfig {
   monthly: number;
   core: AllocationLine[];
@@ -83,6 +89,7 @@ export interface AllocationConfig {
   vix: number;
   vixTimestamp: number;
   vixDate: string;
+  rebalanceHistory?: RebalanceEntry[];
 }
 
 export interface VixDetails {
@@ -96,5 +103,6 @@ declare module "react" {
   interface CSSProperties {
     "--glow"?: string;
     "--accent"?: string;
+    "--badge-color"?: string;
   }
 }
