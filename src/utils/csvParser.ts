@@ -195,21 +195,18 @@ export function build(rows: Record<string, string>[]): PortfolioModel {
     .sort((classA, classB) => classB.value - classA.value);
 
   const dailyAmountMap: Record<string, number> = {};
-  transactions.forEach(
-    (transaction) =>
-      (dailyAmountMap[transaction.date] =
-        (dailyAmountMap[transaction.date] || 0) + -transaction.amount),
-  );
+  const sellDates = new Set<string>();
+  transactions.forEach((transaction) => {
+    dailyAmountMap[transaction.date] =
+      (dailyAmountMap[transaction.date] || 0) + -transaction.amount;
+    if (transaction.type === "SELL") sellDates.add(transaction.date);
+  });
   let cumulativeAmount = 0;
   const series: CurvePoint[] = Object.keys(dailyAmountMap)
     .sort()
     .map((date) => {
       cumulativeAmount += dailyAmountMap[date];
-      const hasSale = transactions.some(
-        (transaction) =>
-          transaction.date === date && transaction.type === "SELL",
-      );
-      return { date, net: cumulativeAmount, isSale: hasSale };
+      return { date, net: cumulativeAmount, isSale: sellDates.has(date) };
     });
 
   const monthlyAmountMap: Record<string, number> = {};

@@ -1,6 +1,6 @@
 # Spécification — Suivi de portefeuille
 
-> Document de référence pour le développement futur. Version applicative courante : **2.1.1**.
+> Document de référence pour le développement futur. Version applicative courante : **2.2.0**.
 > Tenir ce fichier et la version dans le fichier App.tsx et le fichier package.json cohérents.
 
 ## 1. Objet & principes
@@ -34,13 +34,12 @@ Principes directeurs :
 - Courbe du capital net déployé (cumul des achats moins les ventes), points de vente marqués.
 - Répartition par classe d'actif (représentation en anneau).
 - Montant investi par mois (histogramme de barres) + ligne de moyenne nette.
-- Par instrument : montant net, **Prix de Revient Unitaire** et **quantité nette**.
+- Par instrument : montant net, **Prix de Revient Unitaire** et **quantité nette** (positions actives uniquement). Section **Archive repliable** listant les positions entièrement revendues avec montant investi, produit des ventes et P&L réalisé.
 - Journal des transactions filtrable et triable.
 
 ### 3.2 Constellation
 
-- Visualisation animée (bulles dimensionnées par le montant), dimensions adaptatives,
-  animation suspendue hors écran. Survol d'une bulle → détail (montant, pourcentage, parts, Prix de Revient Unitaire).
+- Visualisation animée (bulles dimensionnées par le montant), dimensions adaptatives, animation suspendue automatiquement via IntersectionObserver lorsque la scène sort de l'écran. Survol d'une bulle → détail (montant, pourcentage, parts, Prix de Revient Unitaire).
 
 **Panel « Positions · efficacité des frais »** (sous la constellation) :
 
@@ -49,6 +48,8 @@ Principes directeurs :
 - Badge d'efficacité : « Efficace » (< 0,3 %), « Modéré » (< 1 %), « Gourmand » (≥ 1 %).
 - Liaison optionnelle avec l'allocation (via mapping d'alias persistant dans la Configuration d'Allocation) : si lié, le cours et les Pertes et Profits (calculés en croisant les transactions issues du fichier de transactions avec les valeurs courantes saisies manuellement dans l'allocation) s'affichent ; sinon, un bouton de liaison permet de faire le lien.
 - **Filtrage des positions vendues** : Exclut complètement du tableau les instruments dont les parts nettes sont nulles (`shares == 0`) s'ils ne sont pas liés ou présents dans la configuration d'allocation (évite d'afficher des positions passées et soldées chez le courtier CSV).
+- **[Fait] Historique d'achat par indice** : Clic sur une ligne du tableau → déplie la liste chronologique des transactions d'achat (date, symbole, parts, prix unitaire, montant, frais). Disponible aussi sur les lignes de l'Archive.
+- **[Fait] Section Archive** : Panneau repliable (accordéon) sous le tableau des frais, listant les instruments entièrement revendus avec montant total investi, produit des ventes et P&L réalisé. Chaque ligne est expansible pour accéder à l'historique des achats.
 
 ### 3.3 Allocation (rééquilibrage)
 
@@ -58,11 +59,11 @@ Principes directeurs :
   - cœur : `à investir = maximum entre 0 et ((total du cœur + apport mensuel) × pourcentage cible − montant actuel)`
   - satellite : `(total du cœur + apport mensuel) × pourcentage cible − montant actuel` (non borné, peut être négatif)
 - Indicateurs : total, à investir, somme des cibles, **nombre de lignes hors bande**.
-- **Bandes de rééquilibrage personnalisables par ligne** :
+- **[Fait] Bandes de rééquilibrage personnalisables par ligne** :
   - Remplacent la bande fixe de ±5 points.
   - Saisie uniquement disponible en Mode Édition (pour préserver la lisibilité et la clarté en mode lecture).
-  - En lecture, affichage simplifié sous forme de badge de dérive (`🟢 OK` ou `🔴 Dérive`).
-- **Simulateur d'intérêts composés** :
+  - En lecture, affichage simplifié sous forme de badge de dérive (`OK` ou `Dérive`, rendu visuel via CSS `::before`).
+- **[Fait] Simulateur d'intérêts composés** :
   - Placé dans une section repliable (accordéon) en bas de l'onglet Allocation.
   - Permet de projeter la croissance future du capital (valeur actuelle et versements mensuels pré-remplis du portefeuille) selon un taux d'intérêt annuel, une durée et un régime fiscal (Flat Tax 30%, PEA 17,2%, aucun, ou taux personnalisé) personnalisables.
 - **Export des ordres du mois** (copie dans le presse-papiers).
@@ -164,13 +165,15 @@ Repli : en cas d'indisponibilité de la source de données, l'utilisateur est in
 - **Valeur de marché optionnelle par ligne** → Rendement et plus-values ou moins-values latentes (Prix de Revient Unitaire vs cours actuel).
 - **Suivi de la cadence d'investissement** : comparaison entre le montant total réellement investi et les objectifs cumulés au fil des mois.
 - **Historique des rééquilibrages** (journal des ordres passés).
-- **Bande de rééquilibrage ajustable** (par exemple de 5 % à 25 %) à la place de la bande fixe de ±5 points.
 - **Alerte de niveau d'Indice de Volatilité** (suggestion d'ajustement de l'apport mensuel à titre informatif).
 - **Gestion de portefeuilles multiples** (plusieurs fichiers de transactions différents).
+- **Suivi de la cadence d'investissement** : comparaison entre le montant total réellement investi et les objectifs cumulés au fil des mois.
+- **Historique des rééquilibrages** (journal des ordres passés).
 
 ### Proposé par le lead technique
 
 - [Fait] **API d'Indice de Volatilité par défaut** : intégration de l'API ConvexTrade avec CORS natif résolvant définitivement les blocages de requêtes directes.
+- [Fait] **Revue de code complète (v2.2)** : CSS dupliqué supprimé, contraste KPI amélioré, `will-change` sur les transitions animées, cibles tactiles mobiles ≥ 44 px, `useMemo` sur les calculs coûteux de OverviewTab, `O(n)` dans csvParser (Set pour les dates de vente), extraction de `downloadBlob`, `effectiveBand` inline simplifié, attributs ARIA (`aria-controls`, `role="status"`, `role="button"`, `aria-label`) sur les éléments interactifs.
 - **Tests unitaires** : s'assurer que les fonctions de calcul pures restent découplées et testables via la suite de tests unitaires automatique.
 - **Validation du schéma des données d'importation** lors du chargement des fichiers de sauvegarde JavaScript Object Notation.
 - **Mode hors-ligne pour Cloud Firestore** (via l'activation de la persistance hors ligne de Firebase) pour améliorer l'expérience mobile.

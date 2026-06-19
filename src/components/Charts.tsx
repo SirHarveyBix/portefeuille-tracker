@@ -1,12 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
-import {
-  CurvePoint,
-  Instrument,
-  MonthSummary,
-  Transaction,
-  AssetClass,
-} from "../types";
+import { CurvePoint, Instrument, MonthSummary, Transaction } from "../types";
 import { formatEuro, formatNumber, formatDate } from "../utils/financeMath";
+import { getAssetMeta } from "../utils/assetMeta";
 
 // ==========================================
 // 1. DONUT CHART
@@ -429,15 +424,6 @@ export const InstrumentBars: React.FC<InstrumentBarsProps> = ({
     1,
   );
 
-  const CLASS_META: Record<AssetClass, { label: string; hex: string }> = {
-    FUND: { label: "Fonds / ETF", hex: "#e8b339" },
-    STOCK: { label: "Actions", hex: "#5b8def" },
-    CRYPTO: { label: "Crypto", hex: "#a07bf0" },
-    OTHER: { label: "Autre", hex: "#8093b3" },
-  };
-  const getColorHex = (assetClass: AssetClass) =>
-    CLASS_META[assetClass]?.hex || CLASS_META.OTHER.hex;
-
   return (
     <div id="bars">
       {instruments.map((instrument, index) => {
@@ -459,7 +445,7 @@ export const InstrumentBars: React.FC<InstrumentBarsProps> = ({
               <div
                 className="bfill"
                 style={{
-                  background: getColorHex(instrument.assetClass),
+                  background: getAssetMeta(instrument.assetClass).hex,
                   width: animate ? `${percentWidth}%` : "0%",
                 }}
               />

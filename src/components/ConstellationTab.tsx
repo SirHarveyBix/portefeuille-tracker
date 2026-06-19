@@ -1,16 +1,12 @@
-import React, { useState, useEffect, useRef } from "react";
-import {
-  PortfolioModel,
-  AllocationConfig,
-  Instrument,
-  AssetClass,
-} from "../types";
+import React, { useState, useCallback, useEffect, useRef } from "react";
+import { PortfolioModel, AllocationConfig, Instrument } from "../types";
 import {
   formatEuro,
   formatNumber,
   shortName,
   normalizeKey,
 } from "../utils/financeMath";
+import { getAssetMeta } from "../utils/assetMeta";
 
 interface ConstellationTabProps {
   model: PortfolioModel;
@@ -18,14 +14,7 @@ interface ConstellationTabProps {
   onAliasChange: (csvName: string, allocName: string) => void;
 }
 
-const CLASS_META = {
-  FUND: { label: "Fonds / ETF", hex: "#e8b339" },
-  STOCK: { label: "Actions", hex: "#5b8def" },
-  CRYPTO: { label: "Crypto", hex: "#a07bf0" },
-  OTHER: { label: "Autre", hex: "#8093b3" },
-};
-const getMeta = (assetClass: AssetClass) =>
-  CLASS_META[assetClass] || CLASS_META.OTHER;
+const getMeta = getAssetMeta;
 
 interface PhysicsNode extends Instrument {
   radius: number;
@@ -51,6 +40,11 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
   } | null>(null);
 
   const [activeSelectCsv, setActiveSelectCsv] = useState<string | null>(null);
+  const [expandedInstrument, setExpandedInstrument] = useState<string | null>(
+    null,
+  );
+  const [expandedArchive, setExpandedArchive] = useState<string | null>(null);
+  const [isArchiveOpen, setIsArchiveOpen] = useState(false);
 
   const [renderNodes, setRenderNodes] = useState<PhysicsNode[]>([]);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -61,195 +55,139 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
   const width = 720;
   const height = 470;
 
+  // Shared physics tick — mutates nodesRef and paints DOM directly for framerate
+  const runSimulation = useCallback(() => {
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    let alpha = 1;
+    const cx = width / 2;
+    const cy = height / 2;
+
+    const tick = () => {
+      alpha *= 0.992;
+      const nodes = nodesRef.current;
+
+      for (const node of nodes) {
+        node.velocityX += (cx - node.positionX) * 0.0016;
+        node.velocityY += (cy - node.positionY) * 0.0016;
+        node.velocityX += (Math.random() - 0.5) * 0.05 * alpha;
+        node.velocityY += (Math.random() - 0.5) * 0.05 * alpha;
+      }
+
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const a = nodes[i];
+          const b = nodes[j];
+          const dx = b.positionX - a.positionX;
+          const dy = b.positionY - a.positionY;
+          const dist = Math.hypot(dx, dy) || 0.01;
+          const minDist = a.radius + b.radius + 3;
+          if (dist < minDist) {
+            const r = ((minDist - dist) / dist) * 0.5;
+            a.positionX -= dx * r;
+            a.positionY -= dy * r;
+            b.positionX += dx * r;
+            b.positionY += dy * r;
+          }
+        }
+      }
+
+      for (const node of nodes) {
+        node.positionX += node.velocityX;
+        node.positionY += node.velocityY;
+        node.velocityX *= 0.86;
+        node.velocityY *= 0.86;
+        node.positionX = Math.max(
+          node.radius + 4,
+          Math.min(width - node.radius - 4, node.positionX),
+        );
+        node.positionY = Math.max(
+          node.radius + 4,
+          Math.min(height - node.radius - 4, node.positionY),
+        );
+      }
+
+      nodes.forEach((node, idx) => {
+        const el = svgRef.current?.querySelector(`[data-idx="${idx}"]`);
+        if (el)
+          el.setAttribute(
+            "transform",
+            `translate(${node.positionX}, ${node.positionY})`,
+          );
+      });
+
+      if (alpha > 0.002) animFrameRef.current = requestAnimationFrame(tick);
+    };
+
+    animFrameRef.current = requestAnimationFrame(tick);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // 1. Setup physics simulation nodes
   useEffect(() => {
     if (!model.instruments.length) return;
 
-    const centerX = width / 2;
-    const centerY = height / 2;
     const base = Math.min(width, height);
     const maxRadius = Math.max(34, Math.min(78, base * 0.2));
     const minRadius = Math.max(13, maxRadius * 0.34);
 
-    const instrumentValues = model.instruments.map(
-      (instrument) => instrument.net,
-    );
-    const minimumValue = Math.min(...instrumentValues);
-    const maximumValue = Math.max(...instrumentValues);
+    const values = model.instruments.map((i) => i.net);
+    const minVal = Math.min(...values);
+    const maxVal = Math.max(...values);
 
-    const calculateRadius = (value: number) =>
-      maximumValue === minimumValue
+    const calcRadius = (v: number) =>
+      maxVal === minVal
         ? (minRadius + maxRadius) / 2
         : minRadius +
-          ((Math.sqrt(value) - Math.sqrt(minimumValue)) /
-            (Math.sqrt(maximumValue) - Math.sqrt(minimumValue))) *
+          ((Math.sqrt(v) - Math.sqrt(minVal)) /
+            (Math.sqrt(maxVal) - Math.sqrt(minVal))) *
             (maxRadius - minRadius);
 
-    // Initial positions
-    const initialNodes = model.instruments.map((instrument, index) => ({
+    nodesRef.current = model.instruments.map((instrument, index) => ({
       ...instrument,
-      radius: calculateRadius(instrument.net),
-      positionX: centerX + (Math.random() - 0.5) * Math.min(120, width * 0.3),
+      radius: calcRadius(instrument.net),
+      positionX: width / 2 + (Math.random() - 0.5) * Math.min(120, width * 0.3),
       positionY: -40 - Math.random() * 260,
       velocityX: 0,
       velocityY: 0,
       isTop: index === 0,
     }));
 
-    nodesRef.current = initialNodes;
-    setRenderNodes([...initialNodes]);
-
-    // Simulation loop
-    let alpha = 1;
-    const tick = () => {
-      alpha *= 0.992;
-      const nodes = nodesRef.current;
-
-      // Gravity force
-      for (const node of nodes) {
-        node.velocityX += (centerX - node.positionX) * 0.0016;
-        node.velocityY += (centerY - node.positionY) * 0.0016;
-        node.velocityX += (Math.random() - 0.5) * 0.05 * alpha;
-        node.velocityY += (Math.random() - 0.5) * 0.05 * alpha;
-      }
-
-      // Collision resolution
-      for (let index1 = 0; index1 < nodes.length; index1++) {
-        for (let index2 = index1 + 1; index2 < nodes.length; index2++) {
-          const nodeA = nodes[index1];
-          const nodeB = nodes[index2];
-          const differenceX = nodeB.positionX - nodeA.positionX;
-          const differenceY = nodeB.positionY - nodeA.positionY;
-          const distance = Math.hypot(differenceX, differenceY) || 0.01;
-          const minimumDistance = nodeA.radius + nodeB.radius + 3;
-          if (distance < minimumDistance) {
-            const overlapRatio =
-              ((minimumDistance - distance) / distance) * 0.5;
-            const offsetX = differenceX * overlapRatio;
-            const offsetY = differenceY * overlapRatio;
-            nodeA.positionX -= offsetX;
-            nodeA.positionY -= offsetY;
-            nodeB.positionX += offsetX;
-            nodeB.positionY += offsetY;
-          }
-        }
-      }
-
-      // Update positions and boundaries
-      for (const node of nodes) {
-        node.positionX += node.velocityX;
-        node.positionY += node.velocityY;
-        node.velocityX *= 0.86;
-        node.velocityY *= 0.86;
-        node.positionX = Math.max(
-          node.radius + 4,
-          Math.min(width - node.radius - 4, node.positionX),
-        );
-        node.positionY = Math.max(
-          node.radius + 4,
-          Math.min(height - node.radius - 4, node.positionY),
-        );
-      }
-
-      // Paint elements in the DOM directly for optimal framerate
-      nodes.forEach((node, index) => {
-        const element = svgRef.current?.querySelector(`[data-idx="${index}"]`);
-        if (element) {
-          element.setAttribute(
-            "transform",
-            `translate(${node.positionX}, ${node.positionY})`,
-          );
-        }
-      });
-
-      if (alpha > 0.002) {
-        animFrameRef.current = requestAnimationFrame(tick);
-      }
-    };
-
-    animFrameRef.current = requestAnimationFrame(tick);
+    setRenderNodes([...nodesRef.current]);
+    runSimulation();
 
     return () => {
-      if (animFrameRef.current) {
-        cancelAnimationFrame(animFrameRef.current);
-      }
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     };
-  }, [model]);
+  }, [model, runSimulation]);
 
   const triggerReplay = () => {
-    // Force reset nodes positions to run animation again
-    const centerX = width / 2;
     nodesRef.current = nodesRef.current.map((node) => ({
       ...node,
-      positionX: centerX + (Math.random() - 0.5) * 120,
+      positionX: width / 2 + (Math.random() - 0.5) * 120,
       positionY: -40 - Math.random() * 260,
       velocityX: 0,
       velocityY: 0,
     }));
     setRenderNodes([...nodesRef.current]);
-    // Rerun animation tick
-    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-
-    let alpha = 1;
-    const centerXCenter = width / 2;
-    const centerYCenter = height / 2;
-    const tick = () => {
-      alpha *= 0.992;
-      const nodes = nodesRef.current;
-      for (const node of nodes) {
-        node.velocityX += (centerXCenter - node.positionX) * 0.0016;
-        node.velocityY += (centerYCenter - node.positionY) * 0.0016;
-        node.velocityX += (Math.random() - 0.5) * 0.05 * alpha;
-        node.velocityY += (Math.random() - 0.5) * 0.05 * alpha;
-      }
-      for (let index1 = 0; index1 < nodes.length; index1++) {
-        for (let index2 = index1 + 1; index2 < nodes.length; index2++) {
-          const nodeA = nodes[index1];
-          const nodeB = nodes[index2];
-          const differenceX = nodeB.positionX - nodeA.positionX;
-          const differenceY = nodeB.positionY - nodeA.positionY;
-          const distance = Math.hypot(differenceX, differenceY) || 0.01;
-          const minimumDistance = nodeA.radius + nodeB.radius + 3;
-          if (distance < minimumDistance) {
-            const overlapRatio =
-              ((minimumDistance - distance) / distance) * 0.5;
-            const offsetX = differenceX * overlapRatio;
-            const offsetY = differenceY * overlapRatio;
-            nodeA.positionX -= offsetX;
-            nodeA.positionY -= offsetY;
-            nodeB.positionX += offsetX;
-            nodeB.positionY += offsetY;
-          }
-        }
-      }
-      for (const node of nodes) {
-        node.positionX += node.velocityX;
-        node.positionY += node.velocityY;
-        node.velocityX *= 0.86;
-        node.velocityY *= 0.86;
-        node.positionX = Math.max(
-          node.radius + 4,
-          Math.min(width - node.radius - 4, node.positionX),
-        );
-        node.positionY = Math.max(
-          node.radius + 4,
-          Math.min(height - node.radius - 4, node.positionY),
-        );
-      }
-      nodes.forEach((node, index) => {
-        const element = svgRef.current?.querySelector(`[data-idx="${index}"]`);
-        if (element)
-          element.setAttribute(
-            "transform",
-            `translate(${node.positionX}, ${node.positionY})`,
-          );
-      });
-      if (alpha > 0.002) {
-        animFrameRef.current = requestAnimationFrame(tick);
-      }
-    };
-    animFrameRef.current = requestAnimationFrame(tick);
+    runSimulation();
   };
+
+  // Pause animation when stage scrolls out of view
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting && animFrameRef.current) {
+          cancelAnimationFrame(animFrameRef.current);
+          animFrameRef.current = null;
+        }
+      },
+      { threshold: 0 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   // 2. Tooltip & Sidebar logic
   const handleMouseEnter = (node: PhysicsNode) => {
@@ -279,7 +217,7 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
   const topNode = renderNodes[0] || null;
   const smallNode = renderNodes[renderNodes.length - 1] || null;
 
-  // 3. Efficacité des frais table data
+  // 3. Fee table data
   const feeByInstrument: Record<string, number> = {};
   model.transactions.forEach((transaction) => {
     feeByInstrument[transaction.name] =
@@ -300,54 +238,63 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
     return allocByNorm.get(normalizeKey(csvName)) || null;
   };
 
-  const costRows = model.instruments
-    .map((instrument) => {
-      const fees = feeByInstrument[instrument.name] || 0;
-      const feeRatio =
-        instrument.buyAmount > 0 ? (fees / instrument.buyAmount) * 100 : 0;
-      const realPercent =
-        model.totalNet > 0 ? (instrument.net / model.totalNet) * 100 : 0;
-      const match = findAllocMatch(instrument.name);
-      const currentValue = match ? +match.amount || 0 : null;
-      const profitAndLoss =
-        currentValue !== null ? currentValue - instrument.net : null;
-      const profitAndLossPercent =
-        currentValue !== null && instrument.net > 0
-          ? ((currentValue - instrument.net) / instrument.net) * 100
-          : null;
-      const calculatedPrice =
-        currentValue !== null && Math.abs(instrument.shares) > 0
-          ? currentValue / Math.abs(instrument.shares)
-          : null;
-      const linked = !!allocation.aliases?.[instrument.name] || !!match;
-      return {
-        ...instrument,
-        fees,
-        feeRatio,
-        realPercent,
-        currentValue,
-        profitAndLoss,
-        profitAndLossPercent,
-        calculatedPrice,
-        linked,
-      };
-    })
-    .filter((row) => {
-      const isFullySold = Math.abs(row.shares) < 0.0001;
-      if (isFullySold && !row.linked) {
-        return false;
-      }
-      return true;
-    })
+  const allCostRows = model.instruments.map((instrument) => {
+    const fees = feeByInstrument[instrument.name] || 0;
+    const feeRatio =
+      instrument.buyAmount > 0 ? (fees / instrument.buyAmount) * 100 : 0;
+    const realPercent =
+      model.totalNet > 0 ? (instrument.net / model.totalNet) * 100 : 0;
+    const match = findAllocMatch(instrument.name);
+    const currentValue = match ? +match.amount || 0 : null;
+    const profitAndLoss =
+      currentValue !== null ? currentValue - instrument.net : null;
+    const profitAndLossPercent =
+      currentValue !== null && instrument.net > 0
+        ? ((currentValue - instrument.net) / instrument.net) * 100
+        : null;
+    const calculatedPrice =
+      currentValue !== null && Math.abs(instrument.shares) > 0
+        ? currentValue / Math.abs(instrument.shares)
+        : null;
+    const linked = !!allocation.aliases?.[instrument.name] || !!match;
+    return {
+      ...instrument,
+      fees,
+      feeRatio,
+      realPercent,
+      currentValue,
+      profitAndLoss,
+      profitAndLossPercent,
+      calculatedPrice,
+      linked,
+    };
+  });
+
+  const activeCostRows = allCostRows
+    .filter((row) => Math.abs(row.shares) >= 0.0001 || row.linked)
     .sort((rowA, rowB) => rowA.feeRatio - rowB.feeRatio);
 
-  const maxFee = Math.max(...costRows.map((row) => row.feeRatio), 0.01);
+  const archivedRows = allCostRows.filter(
+    (row) => Math.abs(row.shares) < 0.0001 && !row.linked,
+  );
+
+  const maxFee = Math.max(...activeCostRows.map((row) => row.feeRatio), 0.01);
 
   const feeBadge = (ratio: number) => {
     if (ratio < 0.3) return { label: "Efficace", color: "var(--teal)" };
     if (ratio < 1.0) return { label: "Modéré", color: "var(--gold)" };
     return { label: "Gourmand", color: "var(--coral)" };
   };
+
+  const getBuyTransactions = (instrumentName: string) =>
+    model.transactions
+      .filter((t) => t.name === instrumentName && t.type === "BUY")
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+  const getSellProceeds = (instrumentName: string) =>
+    model.transactions
+      .filter((t) => t.name === instrumentName && t.type === "SELL")
+      .reduce((sum, t) => sum + t.amount, 0);
 
   return (
     <>
@@ -364,6 +311,8 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
             ref={svgRef}
             viewBox={`0 0 ${width} ${height}`}
             preserveAspectRatio="xMidYMid meet"
+            role="img"
+            aria-label="Constellation du portefeuille — bulles proportionnelles aux montants investis"
             style={{ width: "100%", height: "100%" }}
           >
             {renderNodes.map((node, index) => {
@@ -541,11 +490,11 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
           <span className="num">Cours</span>
           <span className="num">P&L</span>
           <span className="num">Frais €</span>
-          <span>Frais %</span>
+          <span className="num">Frais %</span>
           <span className="center">Score</span>
         </div>
         <div id="cost-list">
-          {costRows.map((row, index) => {
+          {activeCostRows.map((row, index) => {
             const badge = feeBadge(row.feeRatio);
             const barWidth = ((row.feeRatio / maxFee) * 100).toFixed(0);
             const pruText = row.avgCost
@@ -568,16 +517,26 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
             let pnlColor = "var(--muted-2)";
             if (row.profitAndLoss !== null) {
               const sign = row.profitAndLoss >= 0 ? "+" : "";
-              pnlText = `${sign}${formatEuro(row.profitAndLoss, 2)} (${sign}${row.profitAndLossPercent!.toFixed(1)}%)`;
+              pnlText = `${sign}${formatEuro(row.profitAndLoss, 2)} (${sign}${(row.profitAndLossPercent ?? 0).toFixed(1)}%)`;
               if (row.profitAndLoss > 0.01) pnlColor = "var(--teal)";
               else if (row.profitAndLoss < -0.01) pnlColor = "var(--coral)";
             }
 
             const isSelectOpen = activeSelectCsv === row.name;
+            const isExpanded = expandedInstrument === row.name;
+            const buyTxs = isExpanded ? getBuyTransactions(row.name) : [];
 
             return (
-              <div className="cost-row" key={index}>
-                <span className="cr-rank">{index + 1}</span>
+              <div
+                className={`cost-row expandable ${isExpanded ? "expanded" : ""}`}
+                key={index}
+                onClick={() =>
+                  setExpandedInstrument(isExpanded ? null : row.name)
+                }
+              >
+                <span className="cr-rank">
+                  <span className="cr-expand">▶</span>
+                </span>
                 <span
                   className="cr-dot"
                   style={{ background: getMeta(row.assetClass).hex }}
@@ -596,6 +555,7 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
                       <button
                         className="cr-link-btn"
                         title="Lier à une ligne d'allocation"
+                        aria-label="Lier à une ligne d'allocation"
                         onClick={(event) => {
                           event.stopPropagation();
                           setActiveSelectCsv(isSelectOpen ? null : row.name);
@@ -642,11 +602,152 @@ export const ConstellationTab: React.FC<ConstellationTabProps> = ({
                 >
                   {badge.label}
                 </span>
+
+                {/* Buy history — spans full grid width via grid-column: 1 / -1 */}
+                {isExpanded && buyTxs.length > 0 && (
+                  <div className="buy-history">
+                    <div className="buy-history-head">
+                      <span>Date</span>
+                      <span>Instrument</span>
+                      <span className="bh-parts-h">Parts</span>
+                      <span className="bh-price-h">Prix unit.</span>
+                      <span>Montant</span>
+                      <span>Frais</span>
+                    </div>
+                    {buyTxs.map((tx, txIdx) => (
+                      <div className="buy-history-row" key={txIdx}>
+                        <span className="bh-date">{tx.date}</span>
+                        <span>{tx.symbol || shortName(tx.name)}</span>
+                        <span className="bh-shares">
+                          {formatNumber(tx.shares, tx.shares < 1 ? 4 : 2)}
+                        </span>
+                        <span className="bh-price">
+                          {formatNumber(tx.price, tx.price < 10 ? 4 : 2)} €
+                        </span>
+                        <span className="bh-amount">
+                          {formatEuro(Math.abs(tx.amount), 2)}
+                        </span>
+                        <span className="bh-fee">
+                          {tx.fee > 0 ? formatEuro(tx.fee, 2) : "—"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
       </div>
+
+      {/* Archive — fully sold positions */}
+      {archivedRows.length > 0 && (
+        <div className="panel archive-section" style={{ marginTop: "14px" }}>
+          <div
+            className="archive-header"
+            role="button"
+            tabIndex={0}
+            onClick={() => setIsArchiveOpen((open) => !open)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setIsArchiveOpen((open) => !open);
+              }
+            }}
+          >
+            <div>
+              <span className="ptitle">
+                Archive · positions soldées ({archivedRows.length})
+              </span>
+              <span className="phint" style={{ marginLeft: "10px" }}>
+                instruments entièrement revendus
+              </span>
+            </div>
+            <span className={`archive-arrow ${isArchiveOpen ? "open" : ""}`}>
+              ▶
+            </span>
+          </div>
+
+          {isArchiveOpen && (
+            <div className="archive-list">
+              <div className="archive-head">
+                <span />
+                <span>Instrument</span>
+                <span>Investi</span>
+                <span>Produit</span>
+                <span>P&L réalisé</span>
+              </div>
+              {archivedRows.map((row, idx) => {
+                const sellProceeds = getSellProceeds(row.name);
+                const realizedPnL = sellProceeds - row.buyAmount;
+                const isArchiveExpanded = expandedArchive === row.name;
+                const archiveBuyTxs = isArchiveExpanded
+                  ? getBuyTransactions(row.name)
+                  : [];
+                return (
+                  <div
+                    className={`archive-row expandable ${isArchiveExpanded ? "expanded" : ""}`}
+                    key={idx}
+                    style={{ cursor: "pointer" }}
+                    onClick={() =>
+                      setExpandedArchive(isArchiveExpanded ? null : row.name)
+                    }
+                  >
+                    <span className="cr-expand" style={{ fontSize: "9px" }}>
+                      ▶
+                    </span>
+                    <span className="ar-name" title={row.name}>
+                      {shortName(row.name)}
+                    </span>
+                    <span className="ar-bought">
+                      {formatEuro(row.buyAmount)}
+                    </span>
+                    <span className="ar-sold">{formatEuro(sellProceeds)}</span>
+                    <span
+                      className={`ar-pnl ${realizedPnL >= 0 ? "pos" : "neg"}`}
+                    >
+                      {realizedPnL >= 0 ? "+" : ""}
+                      {formatEuro(realizedPnL, 2)}
+                    </span>
+
+                    {/* Buy history for archived position */}
+                    {isArchiveExpanded && archiveBuyTxs.length > 0 && (
+                      <div className="buy-history">
+                        <div className="buy-history-head">
+                          <span>Date</span>
+                          <span>Instrument</span>
+                          <span>Parts</span>
+                          <span>Prix unit.</span>
+                          <span>Montant</span>
+                          <span>Frais</span>
+                        </div>
+                        {archiveBuyTxs.map((tx, txIdx) => (
+                          <div className="buy-history-row" key={txIdx}>
+                            <span className="bh-date">{tx.date}</span>
+                            <span>{tx.symbol || shortName(tx.name)}</span>
+                            <span className="bh-shares">
+                              {formatNumber(tx.shares, tx.shares < 1 ? 4 : 2)}
+                            </span>
+                            <span className="bh-price">
+                              {formatNumber(tx.price, tx.price < 10 ? 4 : 2)} €
+                            </span>
+                            <span className="bh-amount">
+                              {formatEuro(Math.abs(tx.amount), 2)}
+                            </span>
+                            <span className="bh-fee">
+                              {tx.fee > 0 ? formatEuro(tx.fee, 2) : "—"}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </>
   );
 };

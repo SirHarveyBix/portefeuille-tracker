@@ -13,7 +13,7 @@ import {
   FirebaseAuthInstance,
 } from "./components/AuthHeader";
 
-export const APP_VERSION = "2.1.1";
+export const APP_VERSION = "2.2.0";
 
 const ALLOCATION_SEED: AllocationConfig = {
   monthly: 100,
@@ -269,6 +269,8 @@ export const App: React.FC = () => {
   if (isInitializing) {
     return (
       <div
+        role="status"
+        aria-live="polite"
         style={{
           display: "flex",
           height: "100vh",
@@ -330,6 +332,7 @@ export const App: React.FC = () => {
           className={activeTab === "overview" ? "active" : ""}
           onClick={() => setActiveTab("overview")}
           aria-selected={activeTab === "overview" ? "true" : "false"}
+          aria-controls="tab-overview"
           role="tab"
         >
           <span className="ti">▦</span>
@@ -339,6 +342,7 @@ export const App: React.FC = () => {
           className={activeTab === "constellation" ? "active" : ""}
           onClick={() => setActiveTab("constellation")}
           aria-selected={activeTab === "constellation" ? "true" : "false"}
+          aria-controls="tab-constellation"
           role="tab"
         >
           <span className="ti">✦</span>
@@ -348,6 +352,7 @@ export const App: React.FC = () => {
           className={activeTab === "allocation" ? "active" : ""}
           onClick={() => setActiveTab("allocation")}
           aria-selected={activeTab === "allocation" ? "true" : "false"}
+          aria-controls="tab-allocation"
           role="tab"
         >
           <span className="ti">◎</span>

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { PortfolioModel, Transaction } from "../types";
 import {
   LineChart,
@@ -8,38 +8,41 @@ import {
   InstrumentBars,
 } from "./Charts";
 import { formatEuro, formatNumber, formatDate } from "../utils/financeMath";
+import { CLASS_META } from "../utils/assetMeta";
 
 interface OverviewTabProps {
   model: PortfolioModel;
 }
 
-const CLASS_META = {
-  FUND: { label: "Fonds / ETF", hex: "#e8b339" },
-  STOCK: { label: "Actions", hex: "#5b8def" },
-  CRYPTO: { label: "Crypto", hex: "#a07bf0" },
-  OTHER: { label: "Autre", hex: "#8093b3" },
-};
-
 export const OverviewTab: React.FC<OverviewTabProps> = ({ model }) => {
   const [filter, setFilter] = useState<"ALL" | "BUY" | "SELL">("ALL");
   const [sortKey, setSortKey] = useState<keyof Transaction>("date");
   const [sortDirection, setSortDirection] = useState<-1 | 1>(-1);
+  const [showInstrumentArchive, setShowInstrumentArchive] = useState(false);
 
   // 1. Filtered and sorted transactions
-  const filteredTransactions = model.transactions.filter(
-    (transaction) => filter === "ALL" || transaction.type === filter,
+  const filteredTransactions = useMemo(
+    () =>
+      model.transactions.filter(
+        (transaction) => filter === "ALL" || transaction.type === filter,
+      ),
+    [model.transactions, filter],
   );
-  const sortedTransactions = [...filteredTransactions].sort(
-    (transactionA, transactionB) => {
-      const valueA = transactionA[sortKey];
-      const valueB = transactionB[sortKey];
-      if (typeof valueA === "string" && typeof valueB === "string") {
-        return (valueA < valueB ? -1 : valueA > valueB ? 1 : 0) * sortDirection;
-      } else if (typeof valueA === "number" && typeof valueB === "number") {
-        return (valueA - valueB) * sortDirection;
-      }
-      return 0;
-    },
+  const sortedTransactions = useMemo(
+    () =>
+      [...filteredTransactions].sort((transactionA, transactionB) => {
+        const valueA = transactionA[sortKey];
+        const valueB = transactionB[sortKey];
+        if (typeof valueA === "string" && typeof valueB === "string") {
+          return (
+            (valueA < valueB ? -1 : valueA > valueB ? 1 : 0) * sortDirection
+          );
+        } else if (typeof valueA === "number" && typeof valueB === "number") {
+          return (valueA - valueB) * sortDirection;
+        }
+        return 0;
+      }),
+    [filteredTransactions, sortKey, sortDirection],
   );
 
   const handleHeaderClick = (key: keyof Transaction) => {
@@ -56,22 +59,47 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ model }) => {
     return sortDirection === -1 ? " ▾" : " ▴";
   };
 
-  // 2. Asset class donut segments & legend
-  const donutSegments = model.classes.map((classItem) => ({
-    value: classItem.value,
-    color: CLASS_META[classItem.assetClass]?.hex || CLASS_META.OTHER.hex,
-  }));
+  // 2. Active vs archived instruments
+  const activeInstruments = useMemo(
+    () => model.instruments.filter((i) => Math.abs(i.shares) >= 0.0001),
+    [model.instruments],
+  );
+  const archivedInstruments = useMemo(
+    () => model.instruments.filter((i) => Math.abs(i.shares) < 0.0001),
+    [model.instruments],
+  );
+  const sellProceedsMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    model.transactions.forEach((t) => {
+      if (t.type === "SELL") map[t.name] = (map[t.name] || 0) + t.amount;
+    });
+    return map;
+  }, [model.transactions]);
 
-  const legendRows = model.classes.map((classItem) => {
-    const meta = CLASS_META[classItem.assetClass] || CLASS_META.OTHER;
-    const total = model.totalNet || 1;
-    return {
-      color: meta.hex,
-      name: meta.label,
-      val: formatEuro(classItem.value),
-      right: ((classItem.value / total) * 100).toFixed(1) + "%",
-    };
-  });
+  // 3. Asset class donut segments & legend
+  const donutSegments = useMemo(
+    () =>
+      model.classes.map((classItem) => ({
+        value: classItem.value,
+        color: CLASS_META[classItem.assetClass]?.hex || CLASS_META.OTHER.hex,
+      })),
+    [model.classes],
+  );
+
+  const legendRows = useMemo(
+    () =>
+      model.classes.map((classItem) => {
+        const meta = CLASS_META[classItem.assetClass] || CLASS_META.OTHER;
+        const total = model.totalNet || 1;
+        return {
+          color: meta.hex,
+          name: meta.label,
+          val: formatEuro(classItem.value),
+          right: ((classItem.value / total) * 100).toFixed(1) + "%",
+        };
+      }),
+    [model.classes, model.totalNet],
+  );
 
   return (
     <>
@@ -160,7 +188,10 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ model }) => {
         </div>
       </div>
 
-      <div className="grid cols-2" style={{ marginTop: "14px" }}>
+      <div
+        className="grid cols-2"
+        style={{ marginTop: "14px", alignItems: "start" }}
+      >
         {/* Monthly Bar Chart */}
         <div className="panel">
           <div className="phead">
@@ -178,7 +209,71 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ model }) => {
             <span className="ptitle">Par instrument</span>
             <span className="phint">montant net · PRU · quantité</span>
           </div>
-          <InstrumentBars instruments={model.instruments} />
+          <InstrumentBars instruments={activeInstruments} />
+          {archivedInstruments.length > 0 && (
+            <div className="archive-section" style={{ marginTop: "10px" }}>
+              <div
+                className="archive-header"
+                role="button"
+                tabIndex={0}
+                style={{ padding: "8px 0" }}
+                onClick={() => setShowInstrumentArchive((v) => !v)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setShowInstrumentArchive((v) => !v);
+                  }
+                }}
+              >
+                <span className="ptitle" style={{ fontSize: "12px" }}>
+                  Positions soldées ({archivedInstruments.length})
+                </span>
+                <span
+                  className={`archive-arrow ${showInstrumentArchive ? "open" : ""}`}
+                >
+                  ▶
+                </span>
+              </div>
+              {showInstrumentArchive && (
+                <div className="archive-list">
+                  <div className="archive-head">
+                    <span />
+                    <span>Instrument</span>
+                    <span>Investi</span>
+                    <span>Produit</span>
+                    <span>P&L réalisé</span>
+                  </div>
+                  {archivedInstruments.map((inst, idx) => {
+                    const proceeds = sellProceedsMap[inst.name] || 0;
+                    const pnl = proceeds - inst.buyAmount;
+                    return (
+                      <div className="archive-row" key={idx}>
+                        <span
+                          className="ar-dot"
+                          style={{
+                            background:
+                              CLASS_META[inst.assetClass]?.hex ||
+                              CLASS_META.OTHER.hex,
+                          }}
+                        />
+                        <span className="ar-name" title={inst.name}>
+                          {inst.name}
+                        </span>
+                        <span className="ar-bought">
+                          {formatEuro(inst.buyAmount)}
+                        </span>
+                        <span className="ar-sold">{formatEuro(proceeds)}</span>
+                        <span className={`ar-pnl ${pnl >= 0 ? "pos" : "neg"}`}>
+                          {pnl >= 0 ? "+" : ""}
+                          {formatEuro(pnl, 2)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

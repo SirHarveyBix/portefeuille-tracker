@@ -21,6 +21,8 @@
   --coral: #e0705c;
   --r: 14px;
   --nav-h: 0px;
+  --bg-3: #1c2d4a;
+  --bg-card: #14213a;
 }
 * {
   box-sizing: border-box;
@@ -280,8 +282,8 @@ header.top {
 }
 .kpi .ksub {
   font-family: "JetBrains Mono", monospace;
-  font-size: 11px;
-  color: var(--muted-2);
+  font-size: 12px;
+  color: var(--muted);
   margin-top: 5px;
 }
 
@@ -404,6 +406,7 @@ svg {
   border-radius: 6px 6px 0 0;
   height: 0;
   transition: height 0.8s cubic-bezier(0.2, 0.7, 0.2, 1);
+  will-change: height;
 }
 .mcol.peak .mbar {
   background: linear-gradient(180deg, var(--gold), #c9941f);
@@ -461,7 +464,8 @@ svg {
 .donut-center text {
   text-anchor: middle;
 }
-.legend {
+.legend,
+.legend-list {
   display: flex;
   flex-direction: column;
   gap: 9px;
@@ -544,6 +548,7 @@ svg {
   border-radius: 6px;
   width: 0;
   transition: width 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+  will-change: width;
 }
 
 /* journal */
@@ -685,6 +690,9 @@ td.name {
 }
 .const-stage.dim .bubble circle {
   opacity: 0.28;
+}
+.const-stage.dim .bubble circle {
+  will-change: filter;
 }
 .const-stage.dim .bubble.hot circle {
   opacity: 1;
@@ -1073,22 +1081,6 @@ td.name {
   flex-direction: column;
   gap: 14px;
 }
-.addrow {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 11px;
-  background: none;
-  border: 1px dashed var(--line);
-  color: var(--muted);
-  padding: 4px 11px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.addrow:hover {
-  border-color: var(--gold);
-  color: var(--gold);
-}
-
 .holds {
   margin-top: 12px;
 }
@@ -1116,12 +1108,20 @@ td.name {
   white-space: nowrap;
 }
 .badge-drift.ok {
-  background: rgba(70, 204, 163, 0.1);
+  background: rgba(70, 204, 163, 0.12);
   color: var(--teal);
 }
+.badge-drift.ok::before {
+  content: "● ";
+  font-size: 8px;
+}
 .badge-drift.drift {
-  background: rgba(224, 112, 92, 0.1);
+  background: rgba(224, 112, 92, 0.12);
   color: var(--coral);
+}
+.badge-drift.drift::before {
+  content: "▲ ";
+  font-size: 8px;
 }
 .holds-head {
   padding: 0 6px 9px;
@@ -1625,7 +1625,7 @@ footer {
     flex-direction: column;
     gap: 3px;
     padding: 5px 4px;
-    font-size: 10.5px;
+    font-size: 11px;
     border-radius: 12px;
     color: var(--muted-2);
   }
@@ -1830,7 +1830,7 @@ footer {
   }
   .achips {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 8px;
   }
   .achip {
@@ -2084,6 +2084,60 @@ footer {
   .vixval {
     font-size: 28px;
   }
+
+  /* historique d'achat : colonnes simplifiées sur mobile */
+  .buy-history-head {
+    grid-template-columns: 70px 1fr 70px 60px;
+  }
+  .buy-history-row {
+    grid-template-columns: 70px 1fr 70px 60px;
+  }
+  .buy-history-row .bh-price,
+  .buy-history-head .bh-price-h,
+  .buy-history-row .bh-shares,
+  .buy-history-head .bh-parts-h {
+    display: none;
+  }
+
+  /* touch targets */
+  .replay {
+    min-height: 44px;
+    padding: 10px 14px;
+  }
+  .atbtn {
+    min-height: 44px;
+  }
+  .delrow {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* archive : 2 colonnes sur mobile */
+  .archive-row {
+    grid-template-columns: 10px 1fr 90px 90px;
+  }
+  .archive-head {
+    grid-template-columns: 10px 1fr 90px 90px;
+  }
+  .archive-row .ar-bought,
+  .archive-head .ah-bought {
+    display: none;
+  }
+
+  /* simulateur : colonne unique sur mobile */
+  .sim-inputs {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .sim-input-group,
+  .sim-input-group--narrow {
+    flex: 1 1 auto;
+  }
+  .sim-result-card-primary {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
 }
 @media (max-width: 380px) {
   .achips,
@@ -2097,6 +2151,255 @@ footer {
     transition: none !important;
     animation: none !important;
   }
+}
+
+/* ── Historique d'achat par ligne (expandable) ── */
+.buy-history {
+  grid-column: 1 / -1;
+  background: var(--bg-2);
+  border-radius: 8px;
+  margin: 4px 0 8px;
+  padding: 8px 12px;
+  animation: fade 0.2s ease;
+}
+.buy-history-head {
+  display: grid;
+  grid-template-columns: 90px 1fr 80px 80px 90px 70px;
+  gap: 6px;
+  padding: 0 0 6px;
+  border-bottom: 1px solid var(--line);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+.buy-history-row {
+  display: grid;
+  grid-template-columns: 90px 1fr 80px 80px 90px 70px;
+  gap: 6px;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(35, 54, 92, 0.3);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: var(--muted);
+}
+.buy-history-row:last-child {
+  border-bottom: none;
+}
+.buy-history-row .bh-date {
+  color: var(--muted-2);
+}
+.buy-history-row .bh-shares,
+.buy-history-row .bh-price,
+.buy-history-row .bh-amount,
+.buy-history-row .bh-fee {
+  text-align: right;
+}
+.buy-history-row .bh-amount {
+  color: var(--ink);
+}
+.cost-row.expandable {
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.cost-row.expandable:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+.cost-row.expanded {
+  background: rgba(232, 179, 57, 0.04);
+}
+.cr-expand {
+  font-size: 10px;
+  color: var(--muted-2);
+  transition: transform 0.2s ease;
+}
+.cost-row.expanded .cr-expand {
+  transform: rotate(90deg);
+}
+
+/* ── Section Archive (instruments vendus) ── */
+.archive-section {
+  margin-top: 14px;
+}
+.archive-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  padding: 10px 0 10px;
+}
+.archive-header:hover .ptitle {
+  color: var(--gold);
+}
+.archive-arrow {
+  font-size: 12px;
+  color: var(--muted);
+  transition: transform 0.2s ease;
+}
+.archive-arrow.open {
+  transform: rotate(90deg);
+}
+.archive-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.archive-row {
+  display: grid;
+  grid-template-columns: 12px 1fr 110px 110px 130px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 6px;
+  border-bottom: 1px solid rgba(35, 54, 92, 0.35);
+  font-size: 12px;
+}
+.archive-row:last-child {
+  border-bottom: none;
+}
+.archive-row .ar-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted-2);
+}
+.archive-row .ar-name {
+  font-size: 13px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.archive-row .ar-bought,
+.archive-row .ar-sold,
+.archive-row .ar-pnl {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  text-align: right;
+  color: var(--muted-2);
+}
+.archive-row .ar-sold {
+  color: var(--muted);
+}
+.archive-row .ar-pnl.pos {
+  color: var(--teal);
+}
+.archive-row .ar-pnl.neg {
+  color: var(--coral);
+}
+.archive-head {
+  display: grid;
+  grid-template-columns: 12px 1fr 110px 110px 130px;
+  gap: 10px;
+  padding: 0 6px 8px;
+  border-bottom: 1px solid var(--line);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+.archive-empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--muted-2);
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* ── Simulateur d'intérêts composés ── */
+.sim-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-bottom: 8px;
+}
+.sim-input-group {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+.sim-input-group--narrow {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+.sim-input {
+  background: var(--bg-2);
+  border: none;
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: var(--ink);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 14px;
+  width: 100%;
+  margin-top: 4px;
+  outline: none;
+  display: block;
+}
+.sim-input--readonly {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+.sim-input-hint {
+  font-size: 10px;
+  color: var(--muted-2);
+  display: block;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+.sim-select {
+  background: var(--bg-2);
+  border: none;
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 14px;
+  width: 100%;
+  margin-top: 4px;
+  outline: none;
+  cursor: pointer;
+  height: 37px;
+  display: block;
+}
+.sim-result-label {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: "JetBrains Mono", monospace;
+}
+.sim-result-label--lg {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+.sim-result-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-top: 4px;
+  font-family: "JetBrains Mono", monospace;
+}
+.sim-result-value--primary {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--gold);
+}
+.sim-result-value--interest {
+  color: var(--cobalt);
+}
+.sim-result-value--tax {
+  color: var(--coral);
+}
+.sim-result-value--net {
+  color: var(--teal);
+}
+.sim-result-meta {
+  font-size: 11px;
+  color: var(--muted-2);
+  margin-top: 6px;
 }
 
 /* Simulator Accordion Styles */
