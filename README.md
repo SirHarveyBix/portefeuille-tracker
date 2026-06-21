@@ -1,17 +1,18 @@
-# 📈 Suivi de Portefeuille (v2.1.1)
+# 📈 Suivi de Portefeuille (v2.4.0)
 
 Tableau de bord personnel et privé pour suivre ses transactions et piloter le rééquilibrage de ses investissements.
 Hébergement statique simple ou synchronisation sécurisée via **Firebase (Cloud Firestore)**.
+**PWA installable** sur iOS et Android — icône sur l'écran d'accueil, mode standalone, cache hors-ligne.
 
 ---
 
 ## 🌟 Fonctionnalités
 
-| Onglet               | Description                                                                                                                                                                                                                                      |
-| :------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **▦ Vue d'ensemble** | Indicateurs clés (KPI), courbe de capital, répartition par classe d'actifs (Donut), barres de versement mensuel et journal des transactions.                                                                                                     |
-| **✦ Constellation**  | Visualisation interactive des positions sous forme de bulles animées proportionnelles et analyse détaillée de l'efficacité des frais de transaction.                                                                                             |
-| **◎ Allocation**     | Calculateur de rééquilibrage (DCA cible) avec bandes de tolérance personnalisables par ligne, simulateur d'intérêts composés, génération automatique d'ordres, import/export JSON de la configuration et indicateur du régime de volatilité VIX. |
+| Onglet               | Description                                                                                                                                                                                                                                                                                                                                              |
+| :------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **▦ Vue d'ensemble** | Indicateurs clés (KPI), courbe de capital, répartition par classe d'actifs (Donut), barres de versement mensuel et journal des transactions.                                                                                                                                                                                                             |
+| **✦ Constellation**  | Visualisation interactive des positions sous forme de bulles animées proportionnelles et analyse détaillée de l'efficacité des frais de transaction.                                                                                                                                                                                                     |
+| **◎ Allocation**     | Calculateur de rééquilibrage (DCA cible) avec bandes de tolérance personnalisables par ligne, simulateur d'intérêts composés, génération automatique d'ordres, import/export JSON de la configuration et indicateur du régime de volatilité VIX. **Pas d'import CSV depuis cette section** — le CSV de transactions est chargé uniquement via le header. |
 
 ---
 
@@ -86,11 +87,22 @@ L'application découple ses règles métier de l'infrastructure pour faciliter l
 
 ---
 
+## 📱 Installation PWA (mobile)
+
+L'application peut être installée comme une application native sur iOS et Android.
+
+- **iOS Safari** : bouton _Partager_ → _Sur l'écran d'accueil_
+- **Android Chrome** : bannière d'installation automatique ou menu → _Ajouter à l'écran d'accueil_
+
+Une fois installée, l'app fonctionne en mode standalone (plein écran, sans barre d'adresse) et charge depuis le cache en cas de perte de connexion.
+
+---
+
 ## 🛠️ Commandes utiles
 
 ```bash
 npm install      # Installe l'environnement de développement
 npm run dev      # Lance le serveur local (Vite)
 npm run build    # Compile l'application pour la production dans dist/
-npm test         # Lance les 30 tests unitaires automatiques
+npm test         # Lance les tests unitaires automatiques
 ```

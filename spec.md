@@ -16,7 +16,7 @@ Principes directeurs :
 - **Données réelles** : les chiffres de marché de l'Indice de Volatilité (Volatility Index) viennent d'une source réelle,
   jamais d'une valeur inventée ou calculée localement.
 - **Type Safety** : base de code typée en langage TypeScript pour éviter toute régression ou erreur silencieuse.
-- **Mobile en premier** : l'expérience mobile est prioritaire — navigation basse fixe, carrousel KPIs, cartes d'allocation tactiles, cibles tactiles ≥ 36 px. Toute fonctionnalité desktop doit être pleinement utilisable sur mobile.
+- **Mobile en premier & PWA** : l'expérience mobile est prioritaire — navigation basse fixe, carrousel KPIs, cartes d'allocation tactiles, cibles tactiles ≥ 36 px. L'application est une Progressive Web App (PWA) installable sur iOS et Android (manifest.json + Service Worker). En mode standalone, le comportement est natif : pas de sélection accidentelle, overscroll bloqué, safe-area gérée. Toute fonctionnalité desktop doit être pleinement utilisable sur mobile.
 
 ## 2. Personas
 
@@ -150,7 +150,8 @@ Repli : en cas d'indisponibilité de la source de données, l'utilisateur est in
 ## 8. Installation
 
 - **Développement local** : exécuter la commande `npm run dev` pour démarrer le serveur local rapide (http://localhost:3000).
-- **Hébergement statique simple** : compiler le projet en exécutant la commande `npm run build` et pousser le contenu du dossier de production `dist/` sur des plateformes d'hébergement statique (telles que GitHub Pages ou Cloudflare Pages).
+- **Hébergement statique simple** : compiler le projet en exécutant la commande `npm run build` et pousser le contenu du dossier de production `dist/` sur des plateformes d'hébergement statique (telles que GitHub Pages ou Cloudflare Pages). L'application est installable comme PWA depuis le navigateur mobile (icône sur écran d'accueil) — aucune configuration supplémentaire requise.
+- **Mise à jour du Service Worker** : le nom du cache (`portefeuille-vX.Y.Z`) doit être incrémenté dans `public/sw.js` à chaque version pour invalider le cache des utilisateurs existants.
 - **Hébergement avec base de données (Firebase)** : créer un projet sur la console Google Firebase, activer l'Authentification Google et la base de données Cloud Firestore, copier la configuration web dans `public/assets/config.js`, compiler le projet en exécutant la commande `npm run build` et déployer en lançant la commande `firebase deploy` (firebase-tools installé globalement via `npm install -g firebase-tools` — non inclus dans les devDependencies du projet ; la CI utilise l'action GitHub dédiée).
 
 ## 9. Conventions de développement
@@ -177,9 +178,10 @@ Repli : en cas d'indisponibilité de la source de données, l'utilisateur est in
 - [Fait] **Revue de code complète (v2.2)** : CSS dupliqué supprimé, contraste KPI amélioré, `will-change` sur les transitions animées, cibles tactiles mobiles ≥ 44 px, `useMemo` sur les calculs coûteux de OverviewTab, `O(n)` dans csvParser (Set pour les dates de vente), extraction de `downloadBlob`, `effectiveBand` inline simplifié, attributs ARIA (`aria-controls`, `role="status"`, `role="button"`, `aria-label`) sur les éléments interactifs.
 - [Fait] **Revue UI/UX & accessibilité (v2.3)** : boutons lier/délier déplacés dans la colonne nom (cr-name flex), `aria-expanded` sur tous les accordéons, `aria-hidden` sur les icônes décoratives, `aria-label` sur nav, guard montant=0 pour Cours/P&L, variables CSS `--font-sans`/`--font-mono`/`--font-display`/`--panel-gap`, règle CSS dupliquée supprimée, colonne P&L élargie (110px → 150px), touch targets mobiles boutons liaison ≥ 36 px, `data-label` sur les pieds de tableau d'allocation pour mobile, fix `prefers-reduced-motion` transform simulateur, sentinel `""` dans aliases pour déliaison force.
 - [Fait] **Corrections CSS mobile & roadmap investisseur (v2.4)** : bug `ah-bought` classe manquante dans archive-head (mobile masquage colonne), bug `bh-parts-h`/`bh-price-h` dans buy-history-head de l'archive Constellation, padding-bottom `.wrap` mobile corrigé (`calc(--nav-h + 20px)`). Filtrage positions vendues (shares=0) marqué [Fait] — déjà implémenté.
+- [Fait] **Audit UX mobile complet & PWA (v2.4)** : Anti-zoom iOS (toutes les `font-size` sur inputs ≥ 16px), `-webkit-tap-highlight-color: transparent` global, `touch-action: manipulation` sur 9 sélecteurs, `scroll-snap-stop: always` sur `.kpi`, `overscroll-behavior-x: contain` sur `.kpis`, grille `.atools` 2×2 mobile, cadence 3 colonnes, `sim-input`/`sim-select` 16px, scroll-to-top sur changement d'onglet. PWA : `manifest.json` (installable iOS/Android), Service Worker `sw.js` (network-first, fallback cache), optimisations mode standalone CSS (`overscroll: none`, safe-area-inset-top, user-select bloqué sauf inputs).
 - **Tests unitaires** : s'assurer que les fonctions de calcul pures restent découplées et testables via la suite de tests unitaires automatique.
 - **Validation du schéma des données d'importation** lors du chargement des fichiers de sauvegarde JavaScript Object Notation.
-- **Mode hors-ligne pour Cloud Firestore** (via l'activation de la persistance hors ligne de Firebase) pour améliorer l'expérience mobile.
+- **Mode hors-ligne via Service Worker** : déjà implémenté (network-first + fallback cache pour le shell). La persistance hors-ligne Firestore native reste envisageable pour les données cloud.
 - **Indicateur visuel de synchronisation** (état connecté, hors ligne, ou synchronisé).
 - **Mise en place de Firebase App Check** pour protéger l'accès aux services Firebase et limiter les abus.
 

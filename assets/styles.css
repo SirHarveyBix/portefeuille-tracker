@@ -30,6 +30,7 @@
 }
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 html,
 body {
@@ -393,6 +394,7 @@ svg {
   margin-top: 18px;
   padding-bottom: 22px;
   position: relative;
+  overflow-x: clip;
 }
 .mcol {
   flex: 1;
@@ -527,6 +529,8 @@ svg {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+  min-width: 0;
 }
 .bar .bval {
   font-family: "JetBrains Mono", monospace;
@@ -1788,9 +1792,11 @@ footer {
     border-top: 1px solid var(--line);
     background: rgba(10, 16, 28, 0.94);
     backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
     justify-content: space-around;
     gap: 0;
     padding: 7px 6px calc(7px + env(safe-area-inset-bottom));
+    user-select: none;
   }
   .tabs button {
     flex: 1;
@@ -1800,6 +1806,7 @@ footer {
     font-size: 11px;
     border-radius: 12px;
     color: var(--muted-2);
+    touch-action: manipulation;
   }
   .tabs button .ti {
     font-size: 20px;
@@ -1815,6 +1822,14 @@ footer {
   .panel {
     padding: 16px 15px;
   }
+  .phead {
+    flex-wrap: wrap;
+    gap: 4px 12px;
+  }
+  .phint {
+    min-width: 0;
+    width: 100%;
+  }
   .grid.cols-2 {
     grid-template-columns: 1fr;
   }
@@ -1824,10 +1839,10 @@ footer {
     display: flex;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
     gap: 11px;
     margin: 0 -15px 20px;
     padding: 2px 15px 8px;
-    -webkit-overflow-scrolling: touch;
   }
   .kpis::-webkit-scrollbar {
     display: none;
@@ -1835,6 +1850,7 @@ footer {
   .kpi {
     flex: 0 0 72%;
     scroll-snap-align: start;
+    scroll-snap-stop: always;
   }
 
   /* journal : on masque le bruit, lecture en deux lignes */
@@ -2040,13 +2056,14 @@ footer {
   }
   .atools {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 8px;
   }
   .atbtn {
     text-align: center;
     padding: 12px 8px;
     font-size: 12px;
+    touch-action: manipulation;
   }
 
   /* ── Allocation mobile : cartes ───────────────── */
@@ -2132,13 +2149,13 @@ footer {
     background: var(--bg-2);
     padding: 8px 10px;
     border-radius: 8px;
-    font-size: 15px;
+    font-size: 16px;
     width: 100%;
   }
   .hc-num .calc,
   .hc-num .ainv {
     text-align: left;
-    font-size: 15px;
+    font-size: 16px;
     padding: 8px 0 0;
   }
 
@@ -2165,7 +2182,7 @@ footer {
     pointer-events: none;
     cursor: default;
     font-family: "JetBrains Mono", monospace;
-    font-size: 15px;
+    font-size: 16px;
     color: var(--ink);
     text-align: left;
     padding: 8px 0 0;
@@ -2179,6 +2196,9 @@ footer {
     border-radius: 7px;
     border-bottom: none !important;
     padding: 7px 10px !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    color: var(--ink) !important;
   }
   .allocation-panel:not(.editing) .h-amount:focus {
     background: var(--bg-2) !important;
@@ -2196,7 +2216,7 @@ footer {
 
   /* Valeurs numériques ligne 2 — toujours lisibles */
   .hc-reel .calc {
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 600;
     color: var(--ink);
     padding: 6px 8px;
@@ -2208,15 +2228,10 @@ footer {
     box-sizing: border-box;
   }
 
-  /* Mode lecture : montant et % cible bien contrastés */
-  .allocation-panel:not(.editing) .h-amount {
-    color: var(--ink) !important;
-    font-size: 15px !important;
-    font-weight: 600 !important;
-  }
+  /* Mode lecture : % cible bien contrasté */
   .allocation-panel:not(.editing) .hc-cible .h-target {
     color: var(--ink) !important;
-    font-size: 15px !important;
+    font-size: 16px !important;
     font-weight: 600 !important;
     padding: 6px 0 0 !important;
     background: transparent !important;
@@ -2226,7 +2241,7 @@ footer {
   .allocation-panel.editing .hc-amt .h-amount {
     background: var(--bg-2) !important;
     color: var(--ink) !important;
-    font-size: 15px !important;
+    font-size: 16px !important;
     font-weight: 600;
     padding: 8px 10px !important;
     border-radius: 8px;
@@ -2235,7 +2250,7 @@ footer {
   }
   .allocation-panel.editing .hc-cible .h-target {
     color: var(--ink) !important;
-    font-size: 15px !important;
+    font-size: 16px !important;
   }
   .allocation-panel.editing .hc-reel .calc {
     color: var(--ink);
@@ -2259,7 +2274,7 @@ footer {
   .hc-ainv .ainv.zero {
     color: var(--muted-2);
     font-weight: 400;
-    font-size: 15px;
+    font-size: 16px;
   }
   .hc-ainv .h-lab {
     font-size: 11px;
@@ -2269,6 +2284,7 @@ footer {
 
   /* ── Mode édition ── */
   .allocation-panel.editing .hold {
+    grid-template-columns: 1fr 1fr 1fr;
     padding-top: 48px;
   }
   .allocation-panel.editing .hc-band {
@@ -2290,7 +2306,7 @@ footer {
   }
   .allocation-panel.editing .h-name {
     background: var(--bg-2) !important;
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 500;
     padding: 8px 10px;
     border-radius: 8px;
@@ -2307,7 +2323,7 @@ footer {
     pointer-events: auto;
     cursor: text;
     font-family: "JetBrains Mono", monospace;
-    font-size: 15px;
+    font-size: 16px;
     color: var(--ink);
     text-align: left;
     width: 100%;
@@ -2321,18 +2337,20 @@ footer {
   }
   .allocation-panel.editing .hc-ainv .ainv {
     color: var(--muted);
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 400;
   }
   .delrow {
     font-size: 16px;
     padding: 6px 9px;
+    touch-action: manipulation;
   }
   .moverow {
     font-size: 15px;
     padding: 5px 8px;
     min-height: 36px;
     min-width: 36px;
+    touch-action: manipulation;
   }
 
   .holds-foot {
@@ -2396,6 +2414,7 @@ footer {
   .replay {
     min-height: 44px;
     padding: 10px 14px;
+    touch-action: manipulation;
   }
   .atbtn {
     min-height: 44px;
@@ -2410,6 +2429,7 @@ footer {
     min-width: 36px;
     padding: 6px 8px;
     font-size: 13px;
+    touch-action: manipulation;
   }
 
   /* archive : cartes 2 lignes sur mobile */
@@ -3094,16 +3114,84 @@ footer {
 /* Mobile responsive for new components */
 @media (max-width: 760px) {
   .cadence-grid {
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
   }
   .cadence-value {
-    font-size: 18px;
+    font-size: 16px;
+  }
+  .cadence-sub {
+    font-size: 9.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .rh-list {
     gap: 8px;
   }
   .rh-entry {
     padding: 10px;
+  }
+  /* Simulator inputs : prevent iOS auto-zoom */
+  .sim-input,
+  .sim-select {
+    font-size: 16px;
+  }
+  /* Filters touch targets */
+  .filters button {
+    touch-action: manipulation;
+    min-height: 36px;
+  }
+  /* Add row button */
+  .addrow {
+    touch-action: manipulation;
+    min-height: 44px;
+  }
+  /* Btn edit */
+  .btn-edit {
+    touch-action: manipulation;
+    min-height: 36px;
+    padding: 6px 14px;
+  }
+
+  /* Buy-history : les règles globales (après les @media) écrasent les overrides du premier bloc.
+     On ré-applique ici pour corriger la cascade. */
+  .buy-history-head,
+  .buy-history-row {
+    grid-template-columns: 70px 1fr 70px 60px;
+  }
+  .buy-history-row .bh-price,
+  .buy-history-head .bh-price-h,
+  .buy-history-row .bh-shares,
+  .buy-history-head .bh-parts-h {
+    display: none;
+  }
+}
+
+/* ── PWA standalone optimizations ── */
+@media (display-mode: standalone) {
+  html,
+  body {
+    overscroll-behavior: none;
+  }
+  /* Extra padding top when no browser chrome */
+  .wrap {
+    padding-top: max(24px, env(safe-area-inset-top));
+  }
+}
+
+/* iOS standalone (fallback for older Safari) */
+@media all and (display-mode: standalone) {
+  body {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .hold input,
+  .sim-input,
+  .sim-select,
+  .ainput input,
+  .vixval input {
+    -webkit-user-select: text;
+    user-select: text;
   }
 }
