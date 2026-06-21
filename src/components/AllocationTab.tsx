@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { AllocationConfig, AllocationLine, RebalanceEntry } from "../types";
 import {
   calculateInvestCore,
@@ -120,6 +120,18 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
   const [taxationRegime, setTaxationRegime] = useState("flat-tax");
   const [customTaxRate, setCustomTaxRate] = useState(30);
 
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    type: "core" | "sat";
+    index: number;
+    name: string;
+  } | null>(null);
+
+  const dragRef = useRef<{ type: "core" | "sat"; index: number } | null>(null);
+  const [dragOverInfo, setDragOverInfo] = useState<{
+    type: "core" | "sat";
+    index: number;
+  } | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const vixConfiguration = window.APP_CONFIG?.VIX || { source: "convextrade" };
@@ -183,7 +195,6 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
   const processedSatelliteLines = allocation.sat.map((line: AllocationLine) => {
     const amount = +line.amount || 0;
     const target = +line.target || 0;
-    // In original code, Satellites are computed with coreTotalAmount as denominator for percentReal
     const percentReal = coreTotalAmount ? (amount / coreTotalAmount) * 100 : 0;
     const investAmount = calculateInvestSatellite(
       amount,
@@ -231,7 +242,17 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
     }
   };
 
-  // Handlers for inputs
+  // Auto-fetch VIX on mount si données absentes ou > 24h
+  useEffect(() => {
+    const src = window.APP_CONFIG?.VIX?.source;
+    if (src === "off") return;
+    const isStale =
+      !allocation.vixTimestamp ||
+      Date.now() - allocation.vixTimestamp > 23 * 3600 * 1000;
+    if (isStale) fetchVix();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleMonthlyChange = (value: number) => {
     onAllocationChange({ ...allocation, monthly: value });
   };
@@ -258,10 +279,69 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
     onAllocationChange({ ...allocation, [type]: list });
   };
 
+  // Opens confirm dialog instead of deleting immediately
   const handleDelRow = (type: "core" | "sat", index: number) => {
+    const name = allocation[type][index]?.name || `Ligne ${index + 1}`;
+    setDeleteConfirm({ type, index, name });
+  };
+
+  const confirmDeleteRow = () => {
+    if (!deleteConfirm) return;
+    const list = [...allocation[deleteConfirm.type]];
+    list.splice(deleteConfirm.index, 1);
+    onAllocationChange({ ...allocation, [deleteConfirm.type]: list });
+    setDeleteConfirm(null);
+  };
+
+  const handleMoveRow = (type: "core" | "sat", index: number, dir: -1 | 1) => {
     const list = [...allocation[type]];
-    list.splice(index, 1);
+    const swapIdx = index + dir;
+    if (swapIdx < 0 || swapIdx >= list.length) return;
+    [list[index], list[swapIdx]] = [list[swapIdx], list[index]];
     onAllocationChange({ ...allocation, [type]: list });
+  };
+
+  const handleDragStart = (
+    e: React.DragEvent,
+    type: "core" | "sat",
+    index: number,
+  ) => {
+    dragRef.current = { type, index };
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (
+    e: React.DragEvent,
+    type: "core" | "sat",
+    index: number,
+  ) => {
+    e.preventDefault();
+    if (dragRef.current?.type === type) {
+      setDragOverInfo({ type, index });
+    }
+  };
+
+  const handleDrop = (
+    e: React.DragEvent,
+    type: "core" | "sat",
+    toIndex: number,
+  ) => {
+    e.preventDefault();
+    if (!dragRef.current || dragRef.current.type !== type) return;
+    const fromIndex = dragRef.current.index;
+    if (fromIndex !== toIndex) {
+      const list = [...allocation[type]];
+      const [moved] = list.splice(fromIndex, 1);
+      list.splice(toIndex, 0, moved);
+      onAllocationChange({ ...allocation, [type]: list });
+    }
+    dragRef.current = null;
+    setDragOverInfo(null);
+  };
+
+  const handleDragEnd = () => {
+    dragRef.current = null;
+    setDragOverInfo(null);
   };
 
   const handleReset = () => {
@@ -274,7 +354,6 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
     }
   };
 
-  // VIX manual entry change
   const handleVixInputChange = (value: number) => {
     onAllocationChange({
       ...allocation,
@@ -285,7 +364,6 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
     setVixStatus(null);
   };
 
-  // Export orders to clipboard
   const handleCopyOrders = () => {
     const today = new Date().toLocaleDateString("fr-FR");
     const todayISO = new Date().toISOString().slice(0, 10);
@@ -309,7 +387,6 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
       ordersText = "Aucun ordre à passer ce mois (tout est à la cible).";
     }
 
-    // Save to rebalance history
     if (
       recommendedOrders.core.length > 0 ||
       recommendedOrders.satellite.length > 0
@@ -361,7 +438,6 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
     setTimeout(() => URL.revokeObjectURL(anchor.href), 100);
   };
 
-  // Export orders as CSV
   const handleExportOrdersCSV = () => {
     if (!recommendedOrders.core.length && !recommendedOrders.satellite.length) {
       alert("Aucun ordre à exporter.");
@@ -381,7 +457,6 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
     );
   };
 
-  // Export allocation config
   const handleExportConfig = () => {
     downloadBlob(
       new Blob([JSON.stringify(allocation, null, 2)], {
@@ -391,7 +466,6 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
     );
   };
 
-  // Import allocation config
   const handleImportConfigClick = () => {
     fileInputRef.current?.click();
   };
@@ -424,7 +498,6 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
     fileReader.readAsText(file);
   };
 
-  // Alert chips
   const alertChips = [
     {
       label: "Ordres recommandés",
@@ -448,7 +521,6 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
     },
   ];
 
-  // Donut values
   const donutData = allocation.core.filter(
     (line: AllocationLine) => (+line.target || 0) > 0,
   );
@@ -473,7 +545,6 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
     };
   });
 
-  // VIX card rendering variables
   const vixValue = +allocation.vix || 0;
   const marketRegime = vixRegime(vixValue);
   const vixGaugePos = Math.max(0, Math.min(100, (vixValue / 50) * 100));
@@ -483,7 +554,7 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
 
   const sourceLabels: Record<string, string> = {
     convextrade: "ConvexTrade",
-    cboe: "ConvexTrade", // Compatibilité ascendante
+    cboe: "ConvexTrade",
   };
   const vixStatusLabel = (() => {
     if (vixStatus) return vixStatus;
@@ -512,6 +583,152 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
       .join(" · ");
   })();
 
+  const renderHoldRow = (
+    row: (typeof processedCoreLines)[0] & { investAmount: number },
+    index: number,
+    type: "core" | "sat",
+    isEditing: boolean,
+    totalRows: number,
+  ) => {
+    const isDragOver =
+      dragOverInfo?.type === type && dragOverInfo.index === index;
+    return (
+      <div
+        className={`hold ${row.under ? "under" : ""} ${row.over ? "over" : ""} ${isDragOver ? "drag-over" : ""}`}
+        key={index}
+        draggable={isEditing}
+        onDragStart={
+          isEditing ? (e) => handleDragStart(e, type, index) : undefined
+        }
+        onDragOver={
+          isEditing ? (e) => handleDragOver(e, type, index) : undefined
+        }
+        onDrop={isEditing ? (e) => handleDrop(e, type, index) : undefined}
+        onDragEnd={isEditing ? handleDragEnd : undefined}
+      >
+        <div className="hc hc-name">
+          <label className="h-lab" htmlFor={`hn-${type}-${index}`}>
+            Titre
+          </label>
+          <input
+            className="h-name"
+            id={`hn-${type}-${index}`}
+            value={row.name}
+            onChange={(e) =>
+              handleRowChange(type, index, "name", e.target.value)
+            }
+            placeholder="Titre"
+            readOnly={!isEditing}
+            tabIndex={isEditing ? 0 : -1}
+            aria-label={`Nom — ${row.name || `Ligne ${index + 1}`}`}
+          />
+        </div>
+        <div className="hc hc-num hc-amt">
+          <span className="h-lab">Montant €</span>
+          <input
+            className="h-amount"
+            type="number"
+            value={row.amount || ""}
+            onChange={(e) =>
+              handleRowChange(type, index, "amount", e.target.value)
+            }
+            inputMode="decimal"
+            step="1"
+            aria-label={`Montant — ${row.name || `Ligne ${index + 1}`}`}
+          />
+        </div>
+        <div className="hc hc-num hc-reel">
+          <span className="h-lab">% réel</span>
+          <span className="calc pctreel">{row.percentReal.toFixed(2)} %</span>
+        </div>
+        <div className="hc hc-num hc-cible">
+          <label className="h-lab" htmlFor={`hc-${type}-${index}`}>
+            % cible
+          </label>
+          <input
+            className="h-target"
+            id={`hc-${type}-${index}`}
+            type="number"
+            value={row.target || ""}
+            onChange={(e) =>
+              handleRowChange(type, index, "target", e.target.value)
+            }
+            readOnly={!isEditing}
+            tabIndex={isEditing ? 0 : -1}
+            inputMode="decimal"
+            step="0.5"
+            aria-label={`Cible — ${row.name || `Ligne ${index + 1}`}`}
+          />
+        </div>
+        <div className="hc hc-num hc-band">
+          <span className="h-lab">Bande %</span>
+          {isEditing ? (
+            <input
+              className="h-band-input"
+              id={`hb-${type}-${index}`}
+              type="number"
+              value={row.band !== undefined ? row.band : 5}
+              onChange={(e) =>
+                handleRowChange(type, index, "band", +e.target.value || 0)
+              }
+              inputMode="decimal"
+              step="0.5"
+              min="0"
+              aria-label={`Bande — ${row.name || `Ligne ${index + 1}`}`}
+            />
+          ) : (
+            <span
+              className={`badge-drift ${row.under || row.over ? "drift" : "ok"}`}
+            >
+              {row.under || row.over ? "Dérive" : "OK"}
+            </span>
+          )}
+        </div>
+        <div className="hc hc-num hc-ainv">
+          <span className="h-lab">À investir</span>
+          <span
+            className={`ainv ${row.investAmount >= 1 ? "go" : row.investAmount <= -1 ? "neg" : "zero"}`}
+          >
+            {row.investAmount < 0 ? "−" : ""}
+            {Math.abs(roundToZeroDecimals(row.investAmount))} €
+          </span>
+        </div>
+        <div className="hc hc-del">
+          {isEditing && (
+            <div className="row-actions">
+              <button
+                className="moverow"
+                onClick={() => handleMoveRow(type, index, -1)}
+                disabled={index === 0}
+                aria-label="Monter"
+                title="Monter"
+              >
+                ↑
+              </button>
+              <button
+                className="moverow"
+                onClick={() => handleMoveRow(type, index, 1)}
+                disabled={index === totalRows - 1}
+                aria-label="Descendre"
+                title="Descendre"
+              >
+                ↓
+              </button>
+              <button
+                className="delrow"
+                title="Supprimer"
+                onClick={() => handleDelRow(type, index)}
+                aria-label={`Supprimer ${row.name || `Ligne ${index + 1}`}`}
+              >
+                ✕
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
       {/* Top section: savings & tools */}
@@ -534,7 +751,6 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
           </div>
         </div>
 
-        {/* Chips */}
         <div className="achips" id="a-chips">
           {alertChips.map((chip, index) => (
             <div className={`achip ${chip.colorClass}`} key={index}>
@@ -544,14 +760,13 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
           ))}
         </div>
 
-        {/* Tools */}
         <div className="atools">
           <button id="a-orders" className="atbtn" onClick={handleCopyOrders}>
             {ordersButtonText}
           </button>
           <button
             id="a-orders-csv"
-            className="atbtn"
+            className="atbtn atbtn-desktop-only"
             onClick={handleExportOrdersCSV}
           >
             ⤓ CSV ordres
@@ -581,7 +796,6 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
 
       {/* Allocation grids */}
       <div className="allocation-grid">
-        {/* Colonne gauche : Cœur + Satellite */}
         <div className="allocation-left">
           {/* Core panel */}
           <div
@@ -610,130 +824,15 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
               </div>
 
               <div id="core-list">
-                {processedCoreLines.map((row, index) => (
-                  <div
-                    className={`hold ${row.under ? "under" : ""} ${row.over ? "over" : ""}`}
-                    key={index}
-                  >
-                    <div className="hc hc-name">
-                      <label className="h-lab" htmlFor={`hn-core-${index}`}>
-                        Titre
-                      </label>
-                      <input
-                        className="h-name"
-                        id={`hn-core-${index}`}
-                        value={row.name}
-                        onChange={(e) =>
-                          handleRowChange("core", index, "name", e.target.value)
-                        }
-                        placeholder="Titre"
-                        readOnly={!isCoreEditing}
-                        tabIndex={isCoreEditing ? 0 : -1}
-                        aria-label={`Nom — ${row.name || `Ligne ${index + 1}`}`}
-                      />
-                    </div>
-                    <div className="hc hc-num hc-amt">
-                      <span className="h-lab">Montant €</span>
-                      <input
-                        className="h-amount"
-                        type="number"
-                        value={row.amount || ""}
-                        onChange={(e) =>
-                          handleRowChange(
-                            "core",
-                            index,
-                            "amount",
-                            e.target.value,
-                          )
-                        }
-                        readOnly={!isCoreEditing}
-                        tabIndex={isCoreEditing ? 0 : -1}
-                        inputMode="decimal"
-                        step="1"
-                        aria-label={`Montant — ${row.name || `Ligne ${index + 1}`}`}
-                      />
-                    </div>
-                    <div className="hc hc-num hc-reel">
-                      <span className="h-lab">% réel</span>
-                      <span className="calc pctreel">
-                        {row.percentReal.toFixed(2)} %
-                      </span>
-                    </div>
-                    <div className="hc hc-num hc-cible">
-                      <label className="h-lab" htmlFor={`hc-core-${index}`}>
-                        % cible
-                      </label>
-                      <input
-                        className="h-target"
-                        id={`hc-core-${index}`}
-                        type="number"
-                        value={row.target || ""}
-                        onChange={(e) =>
-                          handleRowChange(
-                            "core",
-                            index,
-                            "target",
-                            e.target.value,
-                          )
-                        }
-                        readOnly={!isCoreEditing}
-                        tabIndex={isCoreEditing ? 0 : -1}
-                        inputMode="decimal"
-                        step="0.5"
-                        aria-label={`Cible — ${row.name || `Ligne ${index + 1}`}`}
-                      />
-                    </div>
-                    <div className="hc hc-num hc-band">
-                      <span className="h-lab">Bande %</span>
-                      {isCoreEditing ? (
-                        <input
-                          className="h-band-input"
-                          id={`hb-core-${index}`}
-                          type="number"
-                          value={row.band !== undefined ? row.band : 5}
-                          onChange={(e) =>
-                            handleRowChange(
-                              "core",
-                              index,
-                              "band",
-                              +e.target.value || 0,
-                            )
-                          }
-                          inputMode="decimal"
-                          step="0.5"
-                          min="0"
-                          aria-label={`Bande — ${row.name || `Ligne ${index + 1}`}`}
-                        />
-                      ) : (
-                        <span
-                          className={`badge-drift ${row.under || row.over ? "drift" : "ok"}`}
-                        >
-                          {row.under || row.over ? "Dérive" : "OK"}
-                        </span>
-                      )}
-                    </div>
-                    <div className="hc hc-num hc-ainv">
-                      <span className="h-lab">À investir</span>
-                      <span
-                        className={`ainv ${row.investAmount >= 1 ? "go" : "zero"}`}
-                      >
-                        {roundToZeroDecimals(row.investAmount)} €
-                      </span>
-                    </div>
-                    <div className="hc hc-del">
-                      {isCoreEditing && (
-                        <button
-                          className="delrow"
-                          title="Supprimer"
-                          onClick={() => handleDelRow("core", index)}
-                          aria-label={`Supprimer ${row.name || `Ligne ${index + 1}`}`}
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                {processedCoreLines.map((row, index) =>
+                  renderHoldRow(
+                    row,
+                    index,
+                    "core",
+                    isCoreEditing,
+                    processedCoreLines.length,
+                  ),
+                )}
               </div>
 
               <div id="core-foot">
@@ -773,7 +872,7 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
             </div>
           </div>
 
-          {/* Satellite panel — sous le cœur dans la colonne gauche */}
+          {/* Satellite panel */}
           <div
             className={`panel allocation-panel ${isSatelliteEditing ? "editing" : ""}`}
             id="sat-panel"
@@ -802,131 +901,15 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
               </div>
 
               <div id="sat-list">
-                {processedSatelliteLines.map((row, index) => (
-                  <div
-                    className={`hold ${row.under ? "under" : ""} ${row.over ? "over" : ""}`}
-                    key={index}
-                  >
-                    <div className="hc hc-name">
-                      <label className="h-lab" htmlFor={`hn-sat-${index}`}>
-                        Titre
-                      </label>
-                      <input
-                        className="h-name"
-                        id={`hn-sat-${index}`}
-                        value={row.name}
-                        onChange={(e) =>
-                          handleRowChange("sat", index, "name", e.target.value)
-                        }
-                        placeholder="Titre"
-                        readOnly={!isSatelliteEditing}
-                        tabIndex={isSatelliteEditing ? 0 : -1}
-                        aria-label={`Nom — ${row.name || `Ligne ${index + 1}`}`}
-                      />
-                    </div>
-                    <div className="hc hc-num hc-amt">
-                      <span className="h-lab">Montant €</span>
-                      <input
-                        className="h-amount"
-                        type="number"
-                        value={row.amount || ""}
-                        onChange={(e) =>
-                          handleRowChange(
-                            "sat",
-                            index,
-                            "amount",
-                            e.target.value,
-                          )
-                        }
-                        readOnly={!isSatelliteEditing}
-                        tabIndex={isSatelliteEditing ? 0 : -1}
-                        inputMode="decimal"
-                        step="1"
-                        aria-label={`Montant — ${row.name || `Ligne ${index + 1}`}`}
-                      />
-                    </div>
-                    <div className="hc hc-num hc-reel">
-                      <span className="h-lab">% réel</span>
-                      <span className="calc pctreel">
-                        {row.percentReal.toFixed(2)} %
-                      </span>
-                    </div>
-                    <div className="hc hc-num hc-cible">
-                      <label className="h-lab" htmlFor={`hc-sat-${index}`}>
-                        % cible
-                      </label>
-                      <input
-                        className="h-target"
-                        id={`hc-sat-${index}`}
-                        type="number"
-                        value={row.target || ""}
-                        onChange={(e) =>
-                          handleRowChange(
-                            "sat",
-                            index,
-                            "target",
-                            e.target.value,
-                          )
-                        }
-                        readOnly={!isSatelliteEditing}
-                        tabIndex={isSatelliteEditing ? 0 : -1}
-                        inputMode="decimal"
-                        step="0.5"
-                        aria-label={`Cible — ${row.name || `Ligne ${index + 1}`}`}
-                      />
-                    </div>
-                    <div className="hc hc-num hc-band">
-                      <span className="h-lab">Bande %</span>
-                      {isSatelliteEditing ? (
-                        <input
-                          className="h-band-input"
-                          id={`hb-sat-${index}`}
-                          type="number"
-                          value={row.band !== undefined ? row.band : 5}
-                          onChange={(e) =>
-                            handleRowChange(
-                              "sat",
-                              index,
-                              "band",
-                              +e.target.value || 0,
-                            )
-                          }
-                          inputMode="decimal"
-                          step="0.5"
-                          min="0"
-                          aria-label={`Bande — ${row.name || `Ligne ${index + 1}`}`}
-                        />
-                      ) : (
-                        <span
-                          className={`badge-drift ${row.under || row.over ? "drift" : "ok"}`}
-                        >
-                          {row.under || row.over ? "Dérive" : "OK"}
-                        </span>
-                      )}
-                    </div>
-                    <div className="hc hc-num hc-ainv">
-                      <span className="h-lab">À investir</span>
-                      <span
-                        className={`ainv ${row.investAmount >= 1 ? "go" : row.investAmount <= -1 ? "neg" : "zero"}`}
-                      >
-                        {row.investAmount >= 0 ? "" : "−"}
-                        {Math.abs(roundToZeroDecimals(row.investAmount))} €
-                      </span>
-                    </div>
-                    <div className="hc hc-del">
-                      {isSatelliteEditing && (
-                        <button
-                          className="delrow"
-                          title="Supprimer"
-                          onClick={() => handleDelRow("sat", index)}
-                          aria-label={`Supprimer ${row.name || `Ligne ${index + 1}`}`}
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                {processedSatelliteLines.map((row, index) =>
+                  renderHoldRow(
+                    row,
+                    index,
+                    "sat",
+                    isSatelliteEditing,
+                    processedSatelliteLines.length,
+                  ),
+                )}
               </div>
 
               <div id="sat-foot">
@@ -964,7 +947,6 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
 
         {/* Colonne droite : Donut cible + VIX */}
         <div className="allocation-side">
-          {/* Target Donut Chart */}
           <div className="panel" id="allocation-donut">
             <div className="phead">
               <span className="ptitle">Répartition cible</span>
@@ -987,7 +969,6 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
             </div>
           </div>
 
-          {/* VIX volatility panel */}
           <div className="panel vixcard" id="vixcard">
             <div className="phead">
               <span className="ptitle">VIX · régime de marché</span>
@@ -1274,6 +1255,38 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
         Sauvegarde automatique (locale, ou en ligne si Firebase est configuré).
         Export/import JSON disponible pour la sauvegarde et le transfert.
       </p>
+
+      {/* Delete confirmation modal */}
+      {deleteConfirm && (
+        <div className="overlay open" onClick={() => setDeleteConfirm(null)}>
+          <div
+            className="modal del-confirm-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="del-confirm-icon">⚠</div>
+            <h2>Supprimer cette ligne ?</h2>
+            <p className="msub">
+              « {deleteConfirm.name} » sera définitivement retiré du
+              portefeuille.
+            </p>
+            <div className="del-confirm-actions">
+              <button
+                className="del-confirm-yes"
+                onClick={confirmDeleteRow}
+                autoFocus
+              >
+                Supprimer
+              </button>
+              <button
+                className="del-confirm-no"
+                onClick={() => setDeleteConfirm(null)}
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

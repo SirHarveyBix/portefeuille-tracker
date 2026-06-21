@@ -1146,7 +1146,7 @@ td.name {
 .allocation-panel.editing .holds-head,
 .allocation-panel.editing .hold,
 .allocation-panel.editing .holds-foot {
-  grid-template-columns: 2.2fr 1fr 1fr 1fr 1fr 1.1fr 30px;
+  grid-template-columns: 2.2fr 1fr 1fr 1fr 1fr 1.1fr 60px;
 }
 .badge-drift {
   display: inline-flex;
@@ -1361,6 +1361,120 @@ td.name {
   pointer-events: none;
   cursor: default;
   color: var(--ink);
+}
+
+/* Montant toujours éditable (même hors mode modification) */
+.h-amount {
+  cursor: text;
+}
+.allocation-panel:not(.editing) .h-amount:hover {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-radius: 4px;
+}
+.allocation-panel:not(.editing) .h-amount:focus {
+  background: var(--bg-2) !important;
+  outline: 1px solid var(--gold);
+  outline-offset: -1px;
+}
+
+/* Drag & drop visuel */
+.hold.drag-over {
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
+  background: rgba(232, 179, 57, 0.05);
+  border-radius: 10px;
+}
+.hold[draggable="true"] {
+  cursor: grab;
+}
+.hold[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+/* Boutons déplacer + supprimer */
+.row-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.moverow {
+  background: none;
+  border: none;
+  color: var(--muted-2);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 5px;
+  border-radius: 5px;
+  line-height: 1;
+  transition: all 0.12s;
+  min-width: 22px;
+  text-align: center;
+}
+.moverow:hover:not(:disabled) {
+  color: var(--gold);
+  background: rgba(232, 179, 57, 0.1);
+}
+.moverow:disabled {
+  opacity: 0.2;
+  cursor: not-allowed;
+}
+
+/* Modal de confirmation de suppression */
+.del-confirm-modal {
+  text-align: center;
+  max-width: 380px;
+}
+.del-confirm-icon {
+  font-size: 28px;
+  color: var(--coral);
+  margin-bottom: 10px;
+}
+.del-confirm-modal h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+.del-confirm-modal .msub {
+  margin-bottom: 22px;
+  font-size: 13px;
+  color: var(--muted);
+  font-family: inherit;
+  letter-spacing: 0;
+}
+.del-confirm-actions {
+  display: flex;
+  gap: 10px;
+}
+.del-confirm-yes {
+  flex: 1;
+  background: var(--coral);
+  color: #fff;
+  border: none;
+  padding: 11px 18px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+.del-confirm-yes:hover {
+  filter: brightness(1.1);
+}
+.del-confirm-no {
+  flex: 1;
+  background: var(--bg-2);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 11px 18px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.del-confirm-no:hover {
+  border-color: var(--muted);
 }
 
 /* VIX */
@@ -1773,98 +1887,128 @@ footer {
     display: none;
   }
 
-  /* constellation en pile, scène plein largeur */
+  /* constellation en pile, scène compacte */
   .const-grid {
     grid-template-columns: 1fr;
   }
   .const-stage {
-    min-height: 62vh;
+    min-height: 44vh;
+    max-height: 52vh;
     order: -1;
   }
 
-  /* analyse des coûts : layout mobile */
+  /* CSV export masqué sur mobile */
+  .atbtn-desktop-only {
+    display: none;
+  }
+
+  /* analyse des coûts : cartes mobile lisibles */
   .cost-head {
     display: none;
   }
   .cost-row {
-    grid-template-columns: 22px 10px 1fr 88px;
-    grid-template-rows: auto auto auto auto auto;
-    gap: 4px 8px;
-    padding: 10px 4px;
+    display: grid;
+    grid-template-columns: 20px 10px 1fr auto;
+    grid-template-rows: auto auto auto auto;
+    gap: 5px 8px;
+    padding: 12px 6px;
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    border-radius: 12px;
+    margin-bottom: 6px;
   }
+  .cost-row:last-child {
+    margin-bottom: 0;
+  }
+  /* colonne 1 : flèche expand (spans toutes les lignes) */
   .cr-rank {
-    grid-row: span 5;
+    grid-column: 1;
+    grid-row: 1 / -1;
+    align-self: center;
   }
+  /* colonne 2 : dot couleur (spans toutes les lignes) */
   .cr-dot {
-    grid-row: span 5;
+    grid-column: 2;
+    grid-row: 1 / -1;
+    align-self: center;
+    width: 10px;
+    height: 10px;
   }
+  /* Ligne 1 : nom | score */
   .cr-name {
     grid-column: 3;
     grid-row: 1;
+    font-size: 14px;
+    font-weight: 500;
   }
   .cr-score {
     grid-column: 4;
     grid-row: 1;
+    align-self: center;
+    font-size: 10px;
   }
+  /* Ligne 2 : net investi | P&L */
   .cr-net {
     grid-column: 3;
     grid-row: 2;
-    font-size: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
   }
   .cr-net::before {
-    content: "Net ";
-    color: var(--muted-2);
-  }
-  .cr-pru {
-    grid-column: 4;
-    grid-row: 2;
+    content: "Investi ";
     font-size: 10px;
-  }
-  .cr-pru::before {
-    content: "PRU ";
-    color: var(--muted-2);
-  }
-  .cr-shares {
-    grid-column: 3;
-    grid-row: 3;
-    font-size: 10px;
-  }
-  .cr-shares::before {
-    content: "Parts ";
-    color: var(--muted-2);
-  }
-  .cr-fees {
-    grid-column: 4;
-    grid-row: 3;
-    font-size: 10px;
-  }
-  .cr-fees::before {
-    content: "Frais ";
-    color: var(--muted-2);
-  }
-  .cr-price {
-    grid-column: 3;
-    grid-row: 4;
-    font-size: 10px;
-    text-align: left;
-  }
-  .cr-price::before {
-    content: "Cours ";
+    font-weight: 400;
     color: var(--muted-2);
   }
   .cr-pnl {
     grid-column: 4;
-    grid-row: 4;
-    font-size: 10px;
+    grid-row: 2;
+    font-size: 13px;
+    font-weight: 600;
     text-align: right;
   }
   .cr-pnl::before {
     content: "P&L ";
+    font-size: 10px;
+    font-weight: 400;
     color: var(--muted-2);
+    display: block;
   }
+  /* Ligne 3 : PRU | Cours */
+  .cr-pru {
+    grid-column: 3;
+    grid-row: 3;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .cr-pru::before {
+    content: "PRU ";
+    color: var(--muted-2);
+    font-size: 10px;
+  }
+  .cr-price {
+    grid-column: 4;
+    grid-row: 3;
+    font-size: 12px;
+    color: var(--muted);
+    text-align: right;
+  }
+  .cr-price::before {
+    content: "Cours ";
+    color: var(--muted-2);
+    font-size: 10px;
+  }
+  /* Ligne 4 : frais bar (pleine largeur) */
   .cr-fee {
     grid-column: 3 / -1;
-    grid-row: 5;
+    grid-row: 4;
+  }
+  /* Masquer les colonnes secondaires */
+  .cr-shares,
+  .cr-fees {
+    display: none;
   }
 
   /* allocation : chaque ligne devient une carte éditable */
@@ -2005,13 +2149,14 @@ footer {
   }
   .allocation-panel:not(.editing) .h-name {
     background: transparent !important;
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 600;
     padding: 0;
     border-radius: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    letter-spacing: -0.01em;
   }
   /* % cible : valeur en lecture seule */
   .allocation-panel:not(.editing) .h-target {
@@ -2028,6 +2173,75 @@ footer {
     display: block;
   }
 
+  /* Montant : toujours éditable sur mobile — signaler visuellement */
+  .allocation-panel:not(.editing) .h-amount {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-radius: 7px;
+    border-bottom: none !important;
+    padding: 7px 10px !important;
+  }
+  .allocation-panel:not(.editing) .h-amount:focus {
+    background: var(--bg-2) !important;
+    outline: 1.5px solid var(--gold);
+    outline-offset: 0;
+  }
+
+  /* Ligne entière : couleurs de statut plus visibles */
+  .hold.under .hc-name .h-name {
+    color: var(--teal);
+  }
+  .hold.over .hc-name .h-name {
+    color: var(--coral);
+  }
+
+  /* Valeurs numériques ligne 2 — toujours lisibles */
+  .hc-reel .calc {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink);
+    padding: 6px 8px;
+    background: var(--bg-2);
+    border-radius: 8px;
+    display: block;
+    text-align: center;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Mode lecture : montant et % cible bien contrastés */
+  .allocation-panel:not(.editing) .h-amount {
+    color: var(--ink) !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+  }
+  .allocation-panel:not(.editing) .hc-cible .h-target {
+    color: var(--ink) !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    padding: 6px 0 0 !important;
+    background: transparent !important;
+  }
+
+  /* Mode édition : montant, % réel, % cible bien visibles */
+  .allocation-panel.editing .hc-amt .h-amount {
+    background: var(--bg-2) !important;
+    color: var(--ink) !important;
+    font-size: 15px !important;
+    font-weight: 600;
+    padding: 8px 10px !important;
+    border-radius: 8px;
+    width: 100%;
+    display: block;
+  }
+  .allocation-panel.editing .hc-cible .h-target {
+    color: var(--ink) !important;
+    font-size: 15px !important;
+  }
+  .allocation-panel.editing .hc-reel .calc {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
   /* À investir : fond doré, mise en valeur */
   .hc-ainv {
     background: rgba(232, 179, 57, 0.08);
@@ -2036,15 +2250,26 @@ footer {
   }
   .hc-ainv .ainv {
     color: var(--gold);
-    font-size: 17px;
-    font-weight: 600;
+    font-size: 18px;
+    font-weight: 700;
     text-align: left;
     padding: 2px 0 0;
+    letter-spacing: -0.01em;
+  }
+  .hc-ainv .ainv.zero {
+    color: var(--muted-2);
+    font-weight: 400;
+    font-size: 15px;
+  }
+  .hc-ainv .h-lab {
+    font-size: 11px;
+    color: var(--gold);
+    opacity: 0.7;
   }
 
   /* ── Mode édition ── */
   .allocation-panel.editing .hold {
-    padding-top: 42px;
+    padding-top: 48px;
   }
   .allocation-panel.editing .hc-band {
     align-items: flex-end;
@@ -2054,6 +2279,10 @@ footer {
     position: absolute;
     top: 8px;
     right: 8px;
+  }
+  .allocation-panel.editing .row-actions {
+    flex-direction: row;
+    gap: 4px;
   }
   /* Nom éditable */
   .allocation-panel.editing .hc-name .h-lab {
@@ -2098,6 +2327,12 @@ footer {
   .delrow {
     font-size: 16px;
     padding: 6px 9px;
+  }
+  .moverow {
+    font-size: 15px;
+    padding: 5px 8px;
+    min-height: 36px;
+    min-width: 36px;
   }
 
   .holds-foot {
@@ -2177,16 +2412,72 @@ footer {
     font-size: 13px;
   }
 
-  /* archive : 2 colonnes sur mobile */
-  .archive-row {
-    grid-template-columns: 10px 1fr 90px 90px;
-  }
+  /* archive : cartes 2 lignes sur mobile */
   .archive-head {
-    grid-template-columns: 10px 1fr 90px 90px;
-  }
-  .archive-row .ar-bought,
-  .archive-head .ah-bought {
     display: none;
+  }
+  .archive-list {
+    gap: 10px;
+  }
+  .archive-row {
+    display: grid;
+    grid-template-columns: 18px 1fr auto;
+    grid-template-rows: auto auto;
+    gap: 5px 8px;
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 14px;
+  }
+  .archive-row .cr-expand {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    align-self: center;
+    font-size: 9px;
+    color: var(--muted-2);
+  }
+  .archive-row .ar-name {
+    grid-column: 2;
+    grid-row: 1;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .archive-row .ar-pnl {
+    grid-column: 3;
+    grid-row: 1;
+    text-align: right;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .archive-row .ar-bought {
+    display: block;
+    grid-column: 2;
+    grid-row: 2;
+    font-size: 11px;
+    color: var(--muted-2);
+    text-align: left;
+  }
+  .archive-row .ar-bought::before {
+    content: "Investi : ";
+  }
+  .archive-row .ar-sold {
+    grid-column: 3;
+    grid-row: 2;
+    text-align: right;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .archive-row .ar-sold::before {
+    content: "→ ";
+    color: var(--muted-2);
+  }
+  .archive-row .buy-history {
+    grid-column: 1 / -1;
   }
 
   /* simulateur : colonne unique sur mobile */
