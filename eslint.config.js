@@ -20,6 +20,6 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ["dist/**", "tests/**", "vix-proxy.worker.js"],
+    ignores: ["dist/**", "tests/**", "vix-proxy.worker.js", "public/sw.js"],
   },
 );

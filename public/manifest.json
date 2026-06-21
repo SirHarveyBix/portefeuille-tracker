@@ -1,0 +1,20 @@
+{
+  "name": "Suivi de portefeuille",
+  "short_name": "Portefeuille",
+  "description": "Suivi DCA et rééquilibrage de portefeuille",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c1320",
+  "theme_color": "#0c1320",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/assets/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["finance", "productivity"],
+  "lang": "fr"
+}

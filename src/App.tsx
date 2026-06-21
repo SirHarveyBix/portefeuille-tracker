@@ -340,7 +340,10 @@ export const App: React.FC = () => {
       >
         <button
           className={activeTab === "overview" ? "active" : ""}
-          onClick={() => setActiveTab("overview")}
+          onClick={() => {
+            setActiveTab("overview");
+            window.scrollTo(0, 0);
+          }}
           aria-selected={activeTab === "overview" ? "true" : "false"}
           aria-controls="tab-overview"
           role="tab"
@@ -352,7 +355,10 @@ export const App: React.FC = () => {
         </button>
         <button
           className={activeTab === "constellation" ? "active" : ""}
-          onClick={() => setActiveTab("constellation")}
+          onClick={() => {
+            setActiveTab("constellation");
+            window.scrollTo(0, 0);
+          }}
           aria-selected={activeTab === "constellation" ? "true" : "false"}
           aria-controls="tab-constellation"
           role="tab"
@@ -364,7 +370,10 @@ export const App: React.FC = () => {
         </button>
         <button
           className={activeTab === "allocation" ? "active" : ""}
-          onClick={() => setActiveTab("allocation")}
+          onClick={() => {
+            setActiveTab("allocation");
+            window.scrollTo(0, 0);
+          }}
           aria-selected={activeTab === "allocation" ? "true" : "false"}
           aria-controls="tab-allocation"
           role="tab"

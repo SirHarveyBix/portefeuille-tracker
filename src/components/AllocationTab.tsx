@@ -779,7 +779,7 @@ export const AllocationTab: React.FC<AllocationTabProps> = ({
             className="atbtn"
             onClick={handleImportConfigClick}
           >
-            ⤒ Importer
+            ⤒ JSON
           </button>
           <button id="a-reset" className="atbtn ghost" onClick={handleReset}>
             ↺ Réinitialiser
